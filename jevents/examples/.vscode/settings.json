@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "rdpmc.h": "c",
+        "perf_event.h": "c"
+    }
+}
