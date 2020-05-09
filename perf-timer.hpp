@@ -11,8 +11,8 @@
 constexpr size_t MAX_COUNTERS = 8;
 
 class PerfEvent {
-    const char *name_;
-    const char *event_string_;
+    std::string name_;
+    std::string event_string_;
 
 public:
 
@@ -20,26 +20,26 @@ public:
      * Event with only a name, which is used to resolve the specific event
      * to use on the current hardware.
      */
-    PerfEvent(const char* name) : name_{name}, event_string_{nullptr} {}
+    PerfEvent(const std::string& name) : name_{name} {}
 
     /**
      * event with a specific event string, which is used to define the event, the name is used for
      * display only.
      */
-    PerfEvent(const char* name, const char* event_string) : name_{name}, event_string_{event_string} {}
+    PerfEvent(const std::string& name, const std::string& event_string) : name_{name}, event_string_{event_string} {}
 
-    const char* name() const { return name_; }
+    const char* name() const { return name_.c_str(); }
 
     /**
      * Return the event string: which is either the explicitly specified event string if there
      * is one, or the name otherwise (since the name is presumably a valid event string).
      */
-    const char* event_string() const { return has_event_string() ? event_string_ : name_; }
+    const char* event_string() const { return (has_event_string() ? event_string_ : name_).c_str(); }
 
     /**
      * True if this event has a dedicated event string separate from the name.
      */
-    bool has_event_string() const { return event_string_ != nullptr; }
+    bool has_event_string() const { return !event_string_.empty(); }
 
     bool operator==(const PerfEvent& rhs) const { return std::strcmp(name(), rhs.name()) == 0; }
     bool operator!=(const PerfEvent& rhs) const { return !(*this == rhs); }

@@ -28,7 +28,7 @@
 #include "common.hpp"
 #include "fmt/format.h"
 #include "hedley.h"
-#include "perf-timer-events.hpp"
+// #include "perf-timer-events.hpp"
 #include "stamp.hpp"
 #include "stats.hpp"
 #include "table.hpp"
@@ -87,6 +87,7 @@ static argsw::Flag arg_csv{parser, "", "Output a csv table instead of the defaul
 
 static argsw::ValueFlag<std::string> arg_algos{parser, "ALGO1,ALGO2,...", "Run only the algorithms in the comma separated list", {"algos"}};
 static argsw::ValueFlag<std::string> arg_perfcols{parser, "COL1,COL2,...", "Include the additional perf-event based columns", {"perf-cols"}};
+static argsw::ValueFlag<std::string> arg_perfextra{parser, "EVENT1,EVENT2,...", "Include the additional arbitrary perf events", {"perf-extra"}};
 static argsw::ValueFlag<size_t> arg_target_size{parser, "SIZE", "Target size in bytes for each trial, used to calculate internal iters", {"trial-size"}, 100000};
 static argsw::ValueFlag<size_t> arg_min_iters{parser, "ITERS", "Minimum number of internal iteratoins for each trial (default 2)", {"min-iters"}, 2};
 static argsw::ValueFlag<uint64_t> arg_warm_ms{parser, "MILLISECONDS", "Warmup milliseconds for each thread after pinning (default 100)", {"warmup-ms"}, 100};
@@ -276,10 +277,10 @@ auto LEFT = table::ColInfo::LEFT;
 auto RIGHT = table::ColInfo::RIGHT;
 
 struct column_base {
-    const char* heading;
+    std::string heading;
     table::ColInfo::Justify j;
 
-    column_base(const char* heading, table::ColInfo::Justify j) : heading{heading}, j{j} {}
+    column_base(const std::string& heading, table::ColInfo::Justify j) : heading{heading}, j{j} {}
 
     virtual void update_config(StampConfig&) const {}
 
@@ -339,27 +340,29 @@ enum NormStyle {
     PER_CL
 };
 
+static PerfEvent NoEvent{""};
+
 class event_column : public column_base {
     struct Failed {}; // to throw
 public:
-    const char *format;
+    std::string format;
     PerfEvent top, bottom;
     NormStyle norm;
 
-    event_column(const char* heading, const char* format, PerfEvent top, NormStyle norm = NONE)
+    event_column(const std::string& heading, const std::string& format, PerfEvent top, NormStyle norm = NONE)
         : column_base{heading, RIGHT}, format{format}, top{top}, bottom{NoEvent}, norm{norm} {}
 
-    virtual void add_to_row(Row& row, const result_holder&, const result& result) const {
+    virtual void add_to_row(Row& row, const result_holder& rh, const result& result) const {
         try {
             auto v = get_value(result.delta);
             switch (norm) {
                 case PER_CL:
-                    v /= (result.buf_bytes() * result.iters / CACHE_LINE_BYTES);
+                    v /= (result.buf_bytes() * rh.spec.func.work_factor * result.iters / CACHE_LINE_BYTES);
                     break;
                 case NONE:;
             };
 
-            row.addf(format, v);
+            row.addf(format.c_str(), v);
         } catch (const Failed&) {
             row.add("FAIL");
         }
@@ -401,7 +404,7 @@ const PerfEvent L2_OUT_SILENT("l2_lines_out.silent");
 const PerfEvent L2_OUT_NON_SILENT("l2_lines_out.non_silent");
 
 const std::vector<event_column> perf_cols = {
-    {"Instructions", "%.2f", INST_RETIRED_ANY, PER_CL},
+    {"Instructions", "%.2f", PerfEvent{"instructions"}, PER_CL},
     {"uncR", "%.2f", UNC_READS, PER_CL},
     {"uncW", "%.2f", UNC_WRITES, PER_CL},
     {"imcR", "%.2f", IMC_READS, PER_CL},
@@ -467,8 +470,8 @@ int main(int argc, char** argv) {
             printf("%s\n", help.c_str());
             exit(EXIT_SUCCESS);
         }, [](const std::string& parse_error) {
-            fmt::print(stderr, "ERROR while parsing arguments: %s\n", parse_error.c_str());
-            fmt::print(stderr, "\nUsage:\n%s\n", parser.Help().c_str());
+            fmt::print(stderr, "ERROR while parsing arguments: {}\n", parse_error);
+            fmt::print(stderr, "\nUsage:\n{}\n", parser.Help());
             exit(EXIT_FAILURE);
         }   
     );
@@ -511,6 +514,14 @@ int main(int argc, char** argv) {
             } else {
                 cols.push_back(&*itr);
             }
+        }
+    }
+
+    if (arg_perfextra) {
+        for (auto& eventstr : split(arg_perfextra.Get(), ",")) {
+            fmt::print(out, "adding extra event: {}\n", eventstr);
+            event_column* col = new event_column(eventstr, "%.2f", PerfEvent{eventstr}, NormStyle::PER_CL);
+            cols.push_back(col);
         }
     }
     
