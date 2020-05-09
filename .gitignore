@@ -25,3 +25,5 @@ perf.data.*
 
 /results
 /temp
+
+/local.mk
