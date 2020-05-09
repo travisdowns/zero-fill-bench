@@ -65,13 +65,9 @@ void avx01(buf_elem* buf, size_t bufsz) {
     avx_fill(buf, bufsz, 0, 1);
 }
 
-
-HEDLEY_NEVER_INLINE
 void std_fill2(buf_elem* buf, size_t bufsz, buf_elem val0, buf_elem val1) {
-    std::fill(buf, buf + bufsz, val0);
-    opt_control::sink_ptr(buf);
-    std::fill(buf, buf + bufsz, val1);
-    opt_control::sink_ptr(buf);
+    std_fill(buf, bufsz, val0);
+    std_fill(buf, bufsz, val1);
 }
 
 void fill00(buf_elem* buf, size_t bufsz) {

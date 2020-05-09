@@ -44,24 +44,24 @@ struct test_func {
     // function pointer to the test function
     cal_f* func;
     const char* id;
-    const char* description;
+    double work_factor = 1.;
 };
 
 std::vector<test_func> ALL_FUNCS = {
-    { memset0, "memset0", "desc" },
-    { memset1, "memset1", "desc" },
-    { fill0  , "fill0", "desc" },
-    { fill1  , "fill1", "desc" },
-    { filln1 , "filln1", "desc" },
-    { avx0   , "avx0", "desc" },
-    { avx1   , "avx1", "desc" },
-    { avx01  , "avx01", "desc" },
-    { fill00 , "fill00", "desc" },
-    { fill01 , "fill01", "desc" },
-    { fill11 , "fill11", "desc" },
-    { count0 , "count0", "desc" },
-    { count1 , "count1", "desc" },
-    { std_memcpy , "memcpy", "desc" },
+    { memset0, "memset0",   },
+    { memset1, "memset1",   },
+    { fill0  , "fill0",     },
+    { fill1  , "fill1",     },
+    { filln1 , "filln1",    },
+    { avx0   , "avx0",      },
+    { avx1   , "avx1",      },
+    { avx01  , "avx01",     },
+    { fill00 , "fill00", 2. },
+    { fill01 , "fill01", 2. },
+    { fill11 , "fill11", 2. },
+    { count0 , "count0",    },
+    { count1 , "count1",    },
+    { std_memcpy , "memcpy",    },
 };
 
 void pin_to_cpu(int cpu) {
@@ -298,14 +298,6 @@ struct rh_column : column_base {
     }
 };
 
-// rh_column make_inner(const char* name, result_holder::ir_u64 pmem, const char* format = "%.1f") {
-//     return rh_column{name, RIGHT,
-//             [=](Row& r, const result_holder& h) {
-//                 r.addf(format, 0.); // h.inner_sum(pmem));
-//             }
-//     };
-// }
-
 rh_column make_inner(const char* name, result_holder::rh_u64 pmem, const char* format = "%.1f") {
     return rh_column{name, RIGHT,
             [=](Row& r, const result_holder& h) {
@@ -321,25 +313,25 @@ static rh_column col_ns  {"Nanos", RIGHT, [](Row& r, const result_holder& h) {
 static rh_column col_iter{"Iters", RIGHT, [](Row& r, const result_holder& h){ r.add(h.spec.iters); }};
 
 
-using delta_extractor = std::function<void(Row& row, const result&)>;
+using delta_extractor = std::function<void(Row& row, const result_holder&, const result&)>;
 
 struct delta_column : column_base {
     delta_extractor e;
 
     delta_column(const char *heading, table::ColInfo::Justify j, delta_extractor e) : column_base{heading, j}, e{e} {}
 
-    virtual void add_to_row(Row& row, const result_holder&, const result& result) const override {
-        e(row, result);
+    virtual void add_to_row(Row& row, const result_holder& rh, const result& result) const override {
+        e(row, rh, result);
     }
 };
 
-static delta_column col_size   {"Size",    RIGHT, [](Row& row, const result& res){ row.add(res.buf_bytes()); }};
-static delta_column col_trial  {"Trial",   RIGHT, [](Row& row, const result& res){ row.add(res.trial); }};
-static delta_column col_stampns{"Stampms", RIGHT, [](Row& row, const result& res){
+static delta_column col_size   {"Size",    RIGHT, [](Row& row, const result_holder&, const result& res){ row.add(res.buf_bytes()); }};
+static delta_column col_trial  {"Trial",   RIGHT, [](Row& row, const result_holder&, const result& res){ row.add(res.trial); }};
+static delta_column col_stampns{"Stampms", RIGHT, [](Row& row, const result_holder&, const result& res){
     row.addf("%0.2f", res.delta.get_nanos() / (1000000. * res.iters));
 }};
-static delta_column col_gbs{"GB/s",    RIGHT, [](Row& row, const result& res){
-    row.addf("%.1f", (double)res.iters * res.buf_bytes() / res.delta.get_nanos());
+static delta_column col_gbs{"GB/s",    RIGHT, [](Row& row, const result_holder& rh, const result& res){
+    row.addf("%.1f", (double)res.iters * rh.spec.func.work_factor * res.buf_bytes() / res.delta.get_nanos());
 }};
 
 enum NormStyle {
@@ -445,9 +437,9 @@ void report_results(const collist cols, const std::vector<result_holder>& result
 
 void list_tests() {
     table::Table table;
-    table.newRow().add("Algo").add("Description");
+    table.newRow().add("Algo");
     for (auto& t : ALL_FUNCS) {
-        table.newRow().add(t.id).add(t.description);
+        table.newRow().add(t.id);
     }
     printf("Available tests:\n\n%s\n", table.str().c_str());
 }
