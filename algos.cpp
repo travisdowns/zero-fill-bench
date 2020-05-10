@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <string.h>
+
+#ifdef __AVX__
 #include <immintrin.h>
+#endif
 
 void memset_val(buf_elem* buf, size_t bufsz, int c) {
     memset(buf, c, bufsz * sizeof(buf[0]));
@@ -39,6 +42,7 @@ void filln1(buf_elem* buf, size_t bufsz) {
 
 HEDLEY_NEVER_INLINE
 void avx_fill(buf_elem* buf, size_t bufsz, buf_elem val0, buf_elem val1) {
+#ifdef __AVX__
 
     auto vbuf = (__m256i *)buf;
     __m256i filler0 = _mm256_set1_epi32(val0);
@@ -51,6 +55,9 @@ void avx_fill(buf_elem* buf, size_t bufsz, buf_elem val0, buf_elem val1) {
         _mm256_store_si256(vbuf + c + 3, filler1);
     }    
     opt_control::sink_ptr(vbuf);
+#else
+    assert(false);
+#endif
 }
 
 void avx0(buf_elem* buf, size_t bufsz) {
