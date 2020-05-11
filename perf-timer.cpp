@@ -15,8 +15,20 @@
 #include "jevents/jevents.h"
 #include "jevents/rdpmc.h"
 #include "perf-timer-events.hpp"
+
 #if USE_RDTSC
 #include "tsc-support.hpp"
+#endif
+
+// USE_RDPMC == 1 enables use of rdpmc reads as the preferred
+// method for reading performance counters, and we enable it
+// by default on x86
+#ifndef USE_RDPMC
+#if defined(__x86_64__) || defined(__i386__)
+#define USE_RDPMC 1
+#else
+#define USE_RDPMC 0
+#endif
 #endif
 
 static bool verbose;
@@ -38,8 +50,10 @@ struct event_ctx {
 
     event_ctx(bool failed = false) : event{NoEvent}, mode{failed ? FAILED : INVALID} {}
 
+#if USE_RDPMC
     event_ctx(PerfEvent event, struct perf_event_attr attr, struct rdpmc_ctx jevent_ctx) :
             event{event}, attr{attr}, jevent_ctx{jevent_ctx}, mode{RDPMC} {}
+#endif
 
     event_ctx(PerfEvent event, struct perf_event_attr attr, int fd, int cpu = -1) :
             event{event}, attr{attr}, fd{fd}, cpu{cpu}, mode{FILE}{}
@@ -51,7 +65,9 @@ struct event_ctx {
 
 
     // the jevents context object
+#if USE_RDPMC
     struct rdpmc_ctx jevent_ctx;
+#endif
     int fd;
     int cpu; // the cpu on which this counter is valid
 
@@ -125,6 +141,7 @@ void printf_perf_attr(FILE *f, const struct perf_event_attr* attr) {
     fprintf(f, "/");
 }
 
+#if USE_RDPMC
 void print_caps(FILE *f, const struct rdpmc_ctx *ctx) {
     fprintf(f, "R%d UT%d ZT%d index: 0x%x",
         (int)ctx->buf->cap_user_rdpmc, (int)ctx->buf->cap_user_time, (int)ctx->buf->cap_user_time_zero, ctx->buf->index);
@@ -140,6 +157,7 @@ void print_caps(FILE *f, const struct rdpmc_ctx *ctx) {
     fprintf(f, " rdtsc=0x%lx", (long unsigned)rdtsc());
 #endif
 }
+#endif
 
 /* list the events in markdown format */
 void list_events() {
@@ -183,6 +201,7 @@ int open_for_rdpmc(struct perf_event_attr *attr, struct rdpmc_ctx *ctx) {
 }
 
 bool make_rdpmc_event(PerfEvent e, perf_event_attr attr, event_ctx& event_context, bool printfail) {
+#if USE_RDPMC
     struct rdpmc_ctx ctx = {};
     int ret;
     if ((ret = open_for_rdpmc(&attr, &ctx)) || ctx.buf->index == 0) {
@@ -193,6 +212,10 @@ bool make_rdpmc_event(PerfEvent e, perf_event_attr attr, event_ctx& event_contex
     }
     event_context = {e, attr, ctx};
     return true;
+#else
+    (void)e; (void)attr; (void)event_context; (void)printfail;
+    return false;
+#endif
 }
 
 bool make_read_event(PerfEvent e, perf_event_attr attr, event_ctx& event_context, bool wholecpu, bool printfail) {
@@ -288,10 +311,12 @@ std::vector<bool> setup_counters(const std::vector<PerfEvent>& events) {
                 vprint("Resolved and programmed event '%s' to ", ec.event.name());
                 printf_perf_attr(stderr, &ec.attr);
                 vprint("\n    mode: %s", ec.mode_string().c_str());
+                #if USE_RDPMC
                 if (ec.mode == event_ctx::RDPMC) {
                     vprint("\n    caps: ");
                     print_caps(stderr, &ec.jevent_ctx);
                 }
+                #endif
                 vprint("\n");
             }
         }
@@ -337,6 +362,9 @@ uint64_t event_ctx::read_file() {
  */
 uint64_t event_ctx::rdpmc_readx()
 {
+#if !USE_RDPMC
+    abort();
+#else
     static_assert(sizeof(uint64_t) == sizeof(unsigned long long));
     assert(mode == event_ctx::RDPMC);
     typedef uint64_t u64;
@@ -387,6 +415,7 @@ uint64_t event_ctx::rdpmc_readx()
         vprint("\n");
     }
     return res2;
+#endif
 }
 
 

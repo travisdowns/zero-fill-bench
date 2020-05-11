@@ -31,7 +31,7 @@ endif
 
 DEFINES = -DUSE_RDTSC=$(USE_RDTSC)
 
-ifdef USE_RDTSC
+ifdef USE_RDPMC
 DEFINES += -DUSE_RDPMC=$(USE_RDPMC)
 endif
 
