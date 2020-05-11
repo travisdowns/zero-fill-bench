@@ -31,6 +31,10 @@ endif
 
 DEFINES = -DUSE_RDTSC=$(USE_RDTSC)
 
+ifdef USE_RDTSC
+DEFINES += -DUSE_RDPMC=$(USE_RDPMC)
+endif
+
 INCLUDES += -Ifmt/include
 
 COMMON_FLAGS := -MMD -Wall -Wextra $(DEFINES) $(ARCH_FLAGS) -g -funroll-loops $(O_LEVEL) $(INCLUDES) $(NDEBUG)
@@ -85,7 +89,7 @@ pmu-events:
 	tar xzf pmu-events.tar.gz
 
 $(JE_LIB): $(JE_SRC)
-	cd jevents && $(MAKE) MAKEFLAGS=
+	cd jevents && $(MAKE) libjevents.a MAKEFLAGS=
 
 LOCAL_MK = $(wildcard local.mk)
 

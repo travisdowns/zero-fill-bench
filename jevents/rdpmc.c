@@ -14,6 +14,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#if defined(__x86_64__) || defined(__i386__)
+
 /* Ring 3 RDPMC support */
 #include <unistd.h>
 #include <stdio.h>
@@ -79,6 +81,11 @@ int rdpmc_open(unsigned counter, struct rdpmc_ctx *ctx)
 int rdpmc_open_attr(struct perf_event_attr *attr, struct rdpmc_ctx *ctx,
 		    struct rdpmc_ctx *leader_ctx)
 {
+	// only available on x86
+#if !(defined(__x86_64__) || defined(__i386__))
+	perror("no rdpmc on this platform");
+	return -1;
+#else
 	ctx->fd = perf_event_open(attr, 0, -1,
 			  leader_ctx ? leader_ctx->fd : -1, 0);
 	if (ctx->fd < 0) {
@@ -92,6 +99,7 @@ int rdpmc_open_attr(struct perf_event_attr *attr, struct rdpmc_ctx *ctx,
 		return -1;
 	}
 	return 0;
+#endif
 }
 
 /**
@@ -116,6 +124,9 @@ void rdpmc_close(struct rdpmc_ctx *ctx)
  */
 unsigned long long rdpmc_read(struct rdpmc_ctx *ctx)
 {
+#if !(defined(__x86_64__) || defined(__i386__))
+	return 0;
+#else
 	u64 val;
 	unsigned seq;
 	u64 offset; 
@@ -135,5 +146,7 @@ unsigned long long rdpmc_read(struct rdpmc_ctx *ctx)
 		rmb();
 	} while (buf->lock != seq);
 	return (val + offset) & 0xffffffffffff;
+#endif
 }
 
+#endif
