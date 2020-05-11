@@ -12,7 +12,7 @@ CC ?= gcc
 ASM ?= nasm
 ASM_FLAGS ?= -DNASM_ENABLE_DEBUG=$(NASM_DEBUG) -w+all
 
-ARCH_FLAGS := -march=$(CPU_ARCH)
+ARCH_FLAGS := $(MARCH_ARG)=$(CPU_ARCH)
 
 # make submakes use the specified compiler also
 export CXX

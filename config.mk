@@ -23,8 +23,11 @@ UNAME_M := $(shell uname -m)
 
 ifeq ($(UNAME_M),x86_64)
 USE_RDTSC ?= 1
+MARCH_ARG=-march
 else
 USE_RDTSC ?= 0
+# non-x86 platforms seem to use mcpu rather than march, bleh
+MARCH_ARG=-mcpu
 endif
 
 $(info ARCH=$(UNAME_M) USE_RDTSC=$(USE_RDTSC))
