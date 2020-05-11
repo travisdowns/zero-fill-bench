@@ -57,6 +57,7 @@ void avx_fill(buf_elem* buf, size_t bufsz, buf_elem val0, buf_elem val1) {
     }    
     opt_control::sink_ptr(vbuf);
 #else
+    (void)buf; (void)bufsz; (void)val0; (void)val1;
     assert(false);
 #endif
 }

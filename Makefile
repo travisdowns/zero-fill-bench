@@ -22,11 +22,11 @@ export CC
 # we filter it out from the wildcard below and then add
 # it back in using COND_SRC, which gets built up based
 # on various conditions
-CONDSRC_MASTER := tsc-support.cpp
+CONDSRC_MASTER := tsc-support.cpp cpuid.cpp
 CONDSRC :=
 
 ifneq ($(USE_RDTSC),0)
-CONDSRC += tsc-support.cpp
+CONDSRC += tsc-support.cpp cpuid.cpp
 endif
 
 DEFINES = -DUSE_RDTSC=$(USE_RDTSC)
