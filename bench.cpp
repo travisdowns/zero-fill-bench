@@ -28,12 +28,17 @@
 #include "common.hpp"
 #include "fmt/format.h"
 #include "hedley.h"
-// #include "perf-timer-events.hpp"
 #include "stamp.hpp"
 #include "stats.hpp"
 #include "table.hpp"
-#include "tsc-support.hpp"
 #include "util.hpp"
+
+#if USE_RDTSC
+#include "use-rdtsc.hpp"
+#define DefaultClock RdtscClock
+#else
+#define DefaultClock StdClock<std::chrono::high_resolution_clock>
+#endif
 
 using std::uint64_t;
 using namespace std::chrono;
@@ -100,6 +105,7 @@ static argsw::ValueFlag<double> arg_step   {parser, "RATIO", "Possibly factional
 static bool verbose; // true for verbose output
 static FILE* out;    // where non-data (informational) output should go
 
+
 template <typename CHRONO_CLOCK>
 struct StdClock {
     using now_t   = decltype(CHRONO_CLOCK::now());
@@ -110,34 +116,19 @@ struct StdClock {
     }
 
     /* accept the result of subtraction of durations and convert to nanos */
-    static uint64_t to_nanos(typename CHRONO_CLOCK::duration d) {
+    static uint64_t to_nanos(delta_t d) {
         return duration_cast<std::chrono::nanoseconds>(d).count();
     }
+
+    static uint64_t now_to_nanos(now_t tp) {
+        return to_nanos(tp.time_since_epoch());
+    }
 };
 
-struct RdtscClock {
-    using now_t   = uint64_t;
-    using delta_t = uint64_t;
-
-    static now_t now() {
-         __builtin_ia32_lfence();
-        now_t ret = rdtsc();
-         __builtin_ia32_lfence();
-        return ret;
-    }
-
-    /* accept the result of subtraction of durations and convert to nanos */
-    static uint64_t to_nanos(now_t diff) {
-        static double tsc_to_nanos = 1000000000.0 / tsc_freq();
-        return diff * tsc_to_nanos;
-    }
-
-    static uint64_t tsc_freq() {
-        static uint64_t freq = get_tsc_freq(arg_force_tsc_cal);
-        return freq;
-    }
-
-};
+template <typename CLOCK = DefaultClock>
+static uint64_t now_nanos() {
+    return CLOCK::now_to_nanos(CLOCK::now());
+}
 
 /*
  * The result of the run_test method, with only the stuff
@@ -167,7 +158,6 @@ struct result_holder {
 
     /** results */
     DescriptiveStats elapsedns_stats;
-    uint64_t ostart_ts, oend_ts; // start of the benchmark
     uint64_t timed_iters = 0; // the number of iterationreac the ctimed part of the test
     uint64_t total_iters = 0;
 
@@ -200,16 +190,16 @@ struct warmup {
     warmup(uint64_t millis) : millis{millis} {}
 
     long warm() {
-        int64_t start = (int64_t)RdtscClock::now();
+        auto start = now_nanos();
         long iters = 0;
-        while (RdtscClock::to_nanos(RdtscClock::now() - start) < 1000000u * millis) {
+        while (now_nanos() < 1000000u * millis) {
             iters++;
         }
         return iters;
     }
 };
 
-template <typename CLOCK = RdtscClock, size_t MEASURED = 17, size_t WARMUP = 10>
+template <typename CLOCK = DefaultClock, size_t MEASURED = 17, size_t WARMUP = 10>
 result_holder run_test(const test_spec& spec, const StampConfig& config) {
     constexpr size_t TRIALS = WARMUP + MEASURED;
     const auto iters = spec.iters;
@@ -226,7 +216,6 @@ result_holder run_test(const test_spec& spec, const StampConfig& config) {
 
     result_holder rh(spec, iters);
 
-    rh.ostart_ts = RdtscClock::now();
     for (size_t t = 0; t < TRIALS; t++) {
         auto i = iters;
         auto t0 = CLOCK::now();
@@ -237,7 +226,6 @@ result_holder run_test(const test_spec& spec, const StampConfig& config) {
         trial_stamps[t] = config.stamp();
         trial_timings[t] = t1 - t0;
     }
-    rh.oend_ts = RdtscClock::now();
 
     rh.timed_iters = MEASURED * iters;
     rh.total_iters = TRIALS * iters;
@@ -482,16 +470,20 @@ int main(int argc, char** argv) {
         Stamp::set_verbose(true);
         perf_timer_set_verbose(true);
     }
+
     // if csv mode is on, only the table should go to stdout
     // the rest goes to stderr
     out = arg_csv ? stderr : stdout;
-    set_logging_file(out);
 
     if (arg_list) {
         list_tests();
         exit(EXIT_SUCCESS);
     }
 
+#if USE_RDTSC
+    set_logging_file(out);
+    get_tsc_freq(arg_force_tsc_cal);
+#endif
 
     bool is_root = (geteuid() == 0);
     auto minsz = arg_buf_min.Get(), maxsz = arg_buf_max.Get();
@@ -525,7 +517,9 @@ int main(int argc, char** argv) {
         }
     }
     
+#if USE_RDTSC
     fmt::print(out, "tsc_freq             : {} MHz ({})\n", RdtscClock::tsc_freq() / 1000000.0, get_tsc_cal_info(arg_force_tsc_cal));
+#endif
     fmt::print(out, "Running as root      : {}\n", is_root     ? "YES" : "NO ");
     fmt::print(out, "CPU pinning enabled  : {}\n", !arg_no_pin ? "YES" : "NO ");
     fmt::print(out, "available CPUs ({:4}): {}\n", cpus.size(), join(cpus, ", "));

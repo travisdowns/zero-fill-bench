@@ -53,7 +53,6 @@ class StampDelta {
     // not cycles: has arbitrary units
     uint64_t tsc_delta;
     event_counts counters;
-    uint64_t tsc_freq;
 
     StampDelta(const StampConfig& config,
                uint64_t tsc_delta,
@@ -67,24 +66,13 @@ public:
      */
     StampDelta() : empty(true), config{nullptr}, tsc_delta{}, counters{} {}
 
-    double get_nanos() const {
-        assert(!empty);
-        return 1000000000. * tsc_delta / tsc_freq;
-    }
+    double get_nanos() const;
 
-    uint64_t get_tsc() const {
-        assert(!empty);
-        return tsc_delta;
-    }
+    uint64_t get_tsc() const;
 
-    event_counts get_counters() const {
-        assert(!empty);
-        return counters;
-    }
+    event_counts get_counters();
 
-    const StampConfig& get_config() const {
-        return *config;
-    }
+    const StampConfig& get_config();
 
     uint64_t get_counter(const PerfEvent& event) const;
 

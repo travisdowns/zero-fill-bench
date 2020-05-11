@@ -14,22 +14,33 @@ ASM_FLAGS ?= -DNASM_ENABLE_DEBUG=$(NASM_DEBUG) -w+all
 
 ARCH_FLAGS := -march=$(CPU_ARCH)
 
-
 # make submakes use the specified compiler also
 export CXX
 export CC
 
+# any file that is only conditionally compiled goes here,
+# we filter it out from the wildcard below and then add
+# it back in using COND_SRC, which gets built up based
+# on various conditions
+CONDSRC_MASTER := tsc-support.cpp
+CONDSRC :=
+
+ifneq ($(USE_RDTSC),0)
+CONDSRC += tsc-support.cpp
+endif
+
+DEFINES = -DUSE_RDTSC=$(USE_RDTSC)
+
 INCLUDES += -Ifmt/include
 
-COMMON_FLAGS := -MMD -Wall -Wextra $(ARCH_FLAGS) -g -funroll-loops $(O_LEVEL) $(INCLUDES) $(NDEBUG)
+COMMON_FLAGS := -MMD -Wall -Wextra $(DEFINES) $(ARCH_FLAGS) -g -funroll-loops $(O_LEVEL) $(INCLUDES) $(NDEBUG)
 
 CPPFLAGS +=
 CFLAGS += $(COMMON_FLAGS)
 CXXFLAGS += $(COMMON_FLAGS) -Wno-unused-variable 
 
 SRC_FILES := $(wildcard *.cpp) $(wildcard *.c) fmt/src/format.cc
-
-#LDFLAGS ?=
+SRC_FILES := $(filter-out $(CONDSRC_MASTER), $(SRC_FILES)) $(CONDSRC)
 
 JE_LIB := jevents/libjevents.a
 JE_SRC := $(wildcard jevents/*.c jevents/*.h)

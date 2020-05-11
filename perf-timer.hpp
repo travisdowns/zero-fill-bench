@@ -16,17 +16,23 @@ class PerfEvent {
 
 public:
 
-    /**
-     * Event with only a name, which is used to resolve the specific event
-     * to use on the current hardware.
-     */
-    PerfEvent(const std::string& name) : name_{name} {}
 
     /**
-     * event with a specific event string, which is used to define the event, the name is used for
-     * display only.
+     * You can use two types of event specifications:
+     * 
+     * Event with only a name, which is used to resolve the specific event
+     * to use on the current hardware (empty event_string).
+     * 
+     * Event with a name and specific event string, which is used to define the event,
+     * while the name is used for display only.
      */
-    PerfEvent(const std::string& name, const std::string& event_string) : name_{name}, event_string_{event_string} {}
+    PerfEvent(const std::string& name, const std::string& event_string = "");
+
+    /**
+     * Equivalent to the constructor above, but with const char * arguments,
+     * resulting in dramatically less generated code.
+     */
+    PerfEvent(const char* name, const char* event_string = "");
 
     const char* name() const { return name_.c_str(); }
 

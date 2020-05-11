@@ -15,10 +15,18 @@
 #include "jevents/jevents.h"
 #include "jevents/rdpmc.h"
 #include "perf-timer-events.hpp"
+#if USE_RDTSC
 #include "tsc-support.hpp"
+#endif
 
 static bool verbose;
 static bool debug; // lots of output
+
+PerfEvent::PerfEvent(const std::string& name, const std::string& event_string)
+        : name_{name}, event_string_{event_string} {}
+
+PerfEvent::PerfEvent(const char* name, const char* event_string)
+        : PerfEvent{std::string(name), std::string(event_string ? event_string : "")} {}
 
 struct event_ctx {
     enum Mode {
@@ -128,7 +136,9 @@ void print_caps(FILE *f, const struct rdpmc_ctx *ctx) {
     APPEND_CTX_FIELD(time_enabled);
     APPEND_CTX_FIELD(time_running);
 
+#if USE_RDTSC
     fprintf(f, " rdtsc=0x%lx", (long unsigned)rdtsc());
+#endif
 }
 
 /* list the events in markdown format */

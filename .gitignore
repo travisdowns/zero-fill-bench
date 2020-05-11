@@ -27,3 +27,4 @@ perf.data.*
 /temp
 
 /local.mk
+/dummy.rebuild

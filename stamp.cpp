@@ -1,6 +1,5 @@
 #include "stamp.hpp"
 #include "perf-timer.hpp"
-#include "tsc-support.hpp"
 #include "perf-timer-events.hpp"
 #include "hedley.h"
 
@@ -8,6 +7,33 @@
 #include <assert.h>
 #include <map>
 #include <stdexcept>
+
+#if USE_RDTSC
+#include "tsc-support.hpp"
+
+static inline uint64_t get_timestamp() {
+    return rdtsc();
+}
+
+static inline uint64_t to_nanos(uint64_t tsc) {
+    static auto tsc_freq = get_tsc_freq(false);
+    return 1000000000. * tsc / tsc_freq;
+}
+
+#else
+#include <chrono>
+
+static inline uint64_t get_timestamp() {
+    using clk = std::chrono::high_resolution_clock;
+    return std::chrono::nanoseconds(clk::now().time_since_epoch()).count();
+}
+
+static inline uint64_t to_nanos(uint64_t tsc) {
+    return tsc; // already in nanos
+}
+
+
+#endif
 
 #define vprint(...)                       \
     do {                                  \
@@ -43,14 +69,22 @@ struct NonExistentCounter : public std::logic_error {
 
 void Stamp::set_verbose(bool v) { verbose = v; }
 
+double StampDelta::get_nanos() const {
+    return to_nanos(get_tsc());
+}
+
+uint64_t StampDelta::get_tsc() const {
+    assert(!empty);
+    return tsc_delta;
+}
+
 StampDelta::StampDelta(const StampConfig& config,
                uint64_t tsc_delta,
                event_counts counters)
         : empty(false),
           config{&config},
           tsc_delta{tsc_delta},
-          counters{std::move(counters)},
-          tsc_freq(get_tsc_freq(false))
+          counters{std::move(counters)}
           {}
 
 StampDelta StampDelta::min(const StampDelta& l, const StampDelta& r) { return apply(l, r, min_functor{}); }
@@ -128,9 +162,9 @@ void StampConfig::prepare() {
 }
 
 Stamp StampConfig::stamp() const {
-    auto tsc_before = rdtsc();
+    auto tsc_before = get_timestamp();
     auto counters = read_counters();
-    auto tsc = rdtsc();
+    auto tsc = get_timestamp();
 
     Stamp s(tsc, counters, tsc_before, 0);
     mm.do_stamp(s);
