@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <locale.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/fcntl.h>
 #include <sys/time.h>
@@ -84,7 +85,7 @@ void print_data_aggr(struct eventlist *el, double ts, bool print_ts)
 		}
 
 		if (print_ts)
-			fprintf(outfh, "%08.4f\t", ts);
+			fprintf(outfh, "% 12.9f\t", ts);
 		fprintf(outfh, "%-30s %'15lu", e->extra.name ? e->extra.name : e->event, v);
 		print_runtime(val);
 		putc('\n', outfh);
@@ -105,7 +106,7 @@ void print_data_no_aggr(struct eventlist *el, double ts, bool print_ts)
 				continue;
 			v = scaled_value(e, i);
 			if (print_ts)
-				fprintf(outfh, "%08.4f\t", ts);
+				fprintf(outfh, "% 12.9f\t", ts);
 			fprintf(outfh, "%3d %-30s %'15lu", i,
 					e->extra.name ? e->extra.name : e->event, v);
 			print_runtime(e->efd[i].val);
@@ -134,16 +135,16 @@ static struct option opts[] = {
 void usage(void)
 {
 	fprintf(stderr, "Usage: jstat [-a] [-e events] [-I interval] [-C cpus] [-A] program\n"
-			"--all -a	     Measure global system\n"
+			"--all -a            Measure global system\n"
 			"-e --events list    Comma separate list of events to measure. Use {} for groups\n"
 			"-I N --interval N   Print events every N ms\n"
 			"-C CPUS --cpu CPUS  Only measure on CPUs. List of numbers or ranges a-b\n"
 			"-A --no-aggr        Print values for individual CPUs\n"
 			"-v --verbose        Print perf_event_open arguments\n"
-			"-o file	     Output results to file\n"
-			"--append	     (with -o) Append results to file\n"
-			"-D N --delay N	     Wait N ms after starting program before measurement\n"
-			"--merge	     Sum multiple instances of uncore events\n"
+			"-o file             Output results to file\n"
+			"--append            (with -o) Append results to file\n"
+			"-D N --delay N      Wait N ms after starting program before measurement\n"
+			"--merge             Sum multiple instances of uncore events\n"
 			"Run event_download.py once first to use symbolic events\n"
 			"Run listevents to show available events\n");
 
@@ -163,9 +164,9 @@ void sigalarm(int sig)
 
 double gettime(void)
 {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return (double)tv.tv_sec * 1e6 + tv.tv_usec;
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (double)ts.tv_sec + ts.tv_nsec/1e9;
 }
 
 bool cont_measure(int ret, struct eventlist *el)
@@ -173,7 +174,7 @@ bool cont_measure(int ret, struct eventlist *el)
 	if (ret < 0 && gotalarm) {
 		gotalarm = false;
 		read_all_events(el);
-		print_data(el, (gettime() - starttime) / 1e6, true);
+		print_data(el, gettime() - starttime, true);
 		return true;
 	}
 	return false;
@@ -251,7 +252,7 @@ int main(int ac, char **av)
 	}
 	if (av[optind] == NULL && !measure_all) {
 		fprintf(stderr, "Specify command or -a\n");
-		exit(1);
+		usage();
 	}
 	if (events && parse_events(el, events) < 0)
 		exit(1);
@@ -309,7 +310,7 @@ int main(int ac, char **av)
 		while (cont_measure(ret, el));
 	}
 	read_all_events(el);
-	print_data(el, (gettime() - starttime)/1e6,
+	print_data(el, gettime() - starttime,
 			interval != 0 && starttime);
 	return 0;
 }
