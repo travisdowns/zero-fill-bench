@@ -553,8 +553,15 @@ int main(int argc, char** argv) {
 
     double step_frac = arg_step.Get();
     std::vector<test_spec> specs;
+    size_t lastelem = (size_t)-1;
     for (size_t bytesz = minsz; bytesz <= maxsz; bytesz = bytesz * step_frac) {
         auto elemsz = bytesz / sizeof(buf_elem);
+        if (elemsz == lastelem) {
+            elemsz++;  // ensure that elemsize always advances
+            bytesz = elemsz * sizeof(buf_elem);
+        }
+        lastelem = elemsz;
+
         auto iters = std::max((arg_target_size.Get() + bytesz - 1) / bytesz, arg_min_iters.Get());
         
         for (auto& algo : algos) {
