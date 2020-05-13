@@ -13,6 +13,7 @@
 __pycache__
 /tmp/*
 *.d
+*.ipynb
 /out*
 
 # exes
