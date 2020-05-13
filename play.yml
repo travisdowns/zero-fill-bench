@@ -1,0 +1,40 @@
+---
+  
+- hosts: "{{ host | default('all') }}"
+  vars:
+  gather_facts: no
+  tasks:
+    - name: Sync repo
+      git:
+        repo: https://github.com/travisdowns/zero-fill-bench.git
+        dest: /home/travis/dev/zero-fill-bench
+    - name: Clean
+      make:
+        target: clean
+        chdir: /home/travis/dev/zero-fill-bench
+      tags: clean
+    - name: Build (g++-9)
+      make:
+        chdir: /home/travis/dev/zero-fill-bench
+        params:
+          CXX={{gxxbest|default('g++-9')}}
+      when: not (dts9|default(False))
+    - name: Build (devtoolset-9)
+      shell:
+        cmd: 'scl enable devtoolset-9 make'
+        chdir: /home/travis/dev/zero-fill-bench
+      when: dts9|default(False)
+    - name: Run benchmark
+      command:
+        chdir: /home/travis/dev/zero-fill-bench
+        cmd: scripts/remote-data.sh
+      register: bout
+      tags: bench
+    #- debug: msg="{{ bout.stdout }}"
+    #- debug: msg="{{ bout.stderr }}"
+    - name: Retrieve results
+      fetch:
+        src: /home/travis/dev/zero-fill-bench/results/remote.csv
+        dest: results/{{uarch}}/
+        flat: yes
+      tags: fetch
