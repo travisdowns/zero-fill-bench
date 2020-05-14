@@ -40,33 +40,36 @@
 #define DefaultClock StdClock<std::chrono::high_resolution_clock>
 #endif
 
-using std::uint64_t;
 using namespace std::chrono;
-
 using namespace Stats;
+
+using std::uint64_t;
 
 struct test_func {
     // function pointer to the test function
     cal_f* func;
     const char* id;
+    buf_elem intial; // fill the buffer with this initial value
     double work_factor = 1.;
 };
 
 std::vector<test_func> ALL_FUNCS = {
-    { memset0, "memset0",   },
-    { memset1, "memset1",   },
-    { fill0  , "fill0",     },
-    { fill1  , "fill1",     },
-    { filln1 , "filln1",    },
-    { avx0   , "alt0",      },
-    { avx1   , "alt1",      },
-    { avx01  , "alt01",     },
-    { fill00 , "fill00", 2. },
-    { fill01 , "fill01", 2. },
-    { fill11 , "fill11", 2. },
-    { count0 , "count0",    },
-    { count1 , "count1",    },
-    { std_memcpy , "memcpy",    },
+    { memset0     , "memset0"  , 0      },
+    { memset1     , "memset1"  , 1      },
+    { fill0       , "fill0"    , 0      },
+    { fill1       , "fill1"    , 1      },
+    { filln1      , "filln1"   ,-1      },
+    { avx0        , "alt0"     , 0      },
+    { avx1        , "alt1"     , 1      },
+    { avx01       , "alt01"    , 0      },
+    { fill00      , "fill00"   , 0 , 2. },
+    { fill01      , "fill01"   , 0 , 2. },
+    { fill11      , "fill11"   , 1 , 2. },
+    { count0      , "count0"   , 0      },
+    { count1      , "count1"   , 1      },
+    { one_per0    , "one_per0" , 0      },
+    { one_per1    , "one_per1" , 1      },
+    { std_memcpy  , "memcpy"   , 0      },
 };
 
 void pin_to_cpu(int cpu) {
@@ -210,6 +213,9 @@ result_holder run_test(const test_spec& spec, const StampConfig& config) {
         fmt::print(out, "Running: id={}, iters={}, bufsz={}, warms={}\n",
                 spec.func.id, spec.iters, spec.bufsz, warms);
     }
+
+    // set the buffer to the specified fill value
+    std::fill(spec.buf, spec.buf + spec.bufsz, spec.func.intial);
 
     std::array<typename CLOCK::delta_t, TRIALS> trial_timings;
     std::array<Stamp, TRIALS> trial_stamps;

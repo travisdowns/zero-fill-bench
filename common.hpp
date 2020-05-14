@@ -20,4 +20,6 @@ cal_f fill01;
 cal_f fill11;
 cal_f count0;
 cal_f count1;
+cal_f one_per0;
+cal_f one_per1;
 cal_f std_memcpy;

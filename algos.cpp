@@ -10,6 +10,8 @@
 #include <immintrin.h>
 #endif
 
+constexpr size_t CL_SIZE = 64; // assumed size of a cache line
+
 void memset_val(buf_elem* buf, size_t size, int c) {
     memset(buf, c, size * sizeof(buf[0]));
     opt_control::sink_ptr(buf);
@@ -109,4 +111,25 @@ void std_memcpy(buf_elem* buf, size_t size) {
     auto half = size / 2;
     memcpy(buf, buf + half, half * sizeof(buf_elem));
     opt_control::sink_ptr(buf);
+}
+
+/**
+ * Writes only a single int per cache line, testing whether we need 
+ * a full overwrite to get the optimization.
+ * 
+ * Doesn't vectorize (almost certainly).
+ */
+HEDLEY_NEVER_INLINE
+void fill_one_per_cl(buf_elem* buf, size_t size, buf_elem val) {
+    for (buf_elem* end = buf + size; buf < end; buf += CACHE_LINE_BYTES / sizeof(buf_elem)) {
+        *buf = val;
+    }
+}
+
+void one_per0(buf_elem* buf, size_t size) {
+    fill_one_per_cl(buf, size, 0);
+}
+
+void one_per1(buf_elem* buf, size_t size) {
+    fill_one_per_cl(buf, size, 1);
 }
