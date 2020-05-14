@@ -93,7 +93,7 @@ void fill11(buf_elem* buf, size_t size) {
     std_fill2(buf, size, 1, 1);
 }
 
-static void std_count(buf_elem* buf, size_t size, buf_elem val) {
+void std_count(buf_elem* buf, size_t size, buf_elem val) {
     auto result = std::count(buf, buf + size, val);
     opt_control::sink(result);
     opt_control::sink_ptr(buf);
@@ -133,3 +133,29 @@ void one_per0(buf_elem* buf, size_t size) {
 void one_per1(buf_elem* buf, size_t size) {
     fill_one_per_cl(buf, size, 1);
 }
+
+/**
+ * Writes an inner buffer of size N with val0, then overwrites
+ * that same region with val1, the repeats this over the next
+ * chunk of the outer buffer (size "size").
+ */
+template <size_t N>
+HEDLEY_NEVER_INLINE
+void double_pump(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
+    for (size_t i = 0; i < size; i += N) {
+        auto end = std::min(i + N, size); // last copy will (probably) be shorter
+        std::fill(buf + i, buf + end, val0);
+        opt_control::sink_ptr(buf);
+        std::fill(buf + i, buf + end, val1);
+        opt_control::sink_ptr(buf);
+    }
+}
+
+void dp0(buf_elem* buf, size_t size) {
+    double_pump<1024>(buf, size, 0, 0);
+}
+
+void dp1(buf_elem* buf, size_t size) {
+    double_pump<1024>(buf, size, 1, 0);
+}
+

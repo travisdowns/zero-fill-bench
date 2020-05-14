@@ -22,4 +22,6 @@ cal_f count0;
 cal_f count1;
 cal_f one_per0;
 cal_f one_per1;
+cal_f dp0;
+cal_f dp1;
 cal_f std_memcpy;

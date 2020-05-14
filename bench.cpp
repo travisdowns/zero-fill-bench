@@ -69,6 +69,8 @@ std::vector<test_func> ALL_FUNCS = {
     { count1      , "count1"   , 1      },
     { one_per0    , "one_per0" , 0      },
     { one_per1    , "one_per1" , 1      },
+    { dp0         , "dp0"      , 0      },
+    { dp1         , "dp1"      , 1      },
     { std_memcpy  , "memcpy"   , 0      },
 };
 
