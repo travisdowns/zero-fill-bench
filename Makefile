@@ -69,6 +69,7 @@ all: $(EXE)
 
 clean:
 	rm -f *.d *.o $(EXE)
+	rm -f fmt/src/*.o
 
 $(EXE): $(OBJECTS) $(EXTRA_DEPS) $(JE_LIB) pmu-events
 	$(CXX) $(OBJECTS) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(JE_LIB) -o $@
