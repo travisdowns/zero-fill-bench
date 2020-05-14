@@ -3,6 +3,13 @@
 
 constexpr size_t CACHE_LINE_BYTES = 64;
 
+/**
+ * The buffer used in the test is guaranteed to have
+ * at least this many extra bytes beyond the nominal
+ * size.
+ */
+constexpr size_t BUFFER_TAIL_BYTES = 128;
+
 using buf_elem = int;
 using cal_f = void(buf_elem* buf, size_t bufsz);
 

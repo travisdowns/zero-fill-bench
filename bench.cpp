@@ -556,7 +556,8 @@ int main(int argc, char** argv) {
 
     // create a cache-line aligned buffer and initialize it
     auto maxelems = maxsz / sizeof(buf_elem);
-    buf_elem* buf = static_cast<buf_elem*>(aligned_alloc(CACHE_LINE_BYTES, maxelems * sizeof(buf_elem)));
+    auto alloc_size = maxelems * sizeof(buf_elem) + BUFFER_TAIL_BYTES;
+    buf_elem* buf = static_cast<buf_elem*>(aligned_alloc(CACHE_LINE_BYTES, alloc_size));
     std::fill(buf, buf + maxelems, -1);
 
     double step_frac = arg_step.Get();

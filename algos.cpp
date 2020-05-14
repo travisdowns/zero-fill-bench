@@ -46,11 +46,12 @@ void filln1(buf_elem* buf, size_t size) {
 HEDLEY_NEVER_INLINE
 void avx_fill(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
 #ifdef __AVX__
-
+    static_assert(BUFFER_TAIL_BYTES >= 127, "buffer tail too small");
     auto vbuf = (__m256i *)buf;
     __m256i filler0 = _mm256_set1_epi32(val0);
     __m256i filler1 = _mm256_set1_epi32(val1);
     size_t chunks = (size * sizeof(buf_elem) + 31) / 32;
+    // we may overwrite by up to 127 bytes (one full iteration of writes - 1)
     for (size_t c = 0; c < chunks; c += 4) {
         _mm256_store_si256(vbuf + c + 0, filler0);
         _mm256_store_si256(vbuf + c + 1, filler0);
