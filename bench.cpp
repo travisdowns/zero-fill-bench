@@ -195,9 +195,9 @@ struct warmup {
     warmup(uint64_t millis) : millis{millis} {}
 
     long warm() {
-        auto start = now_nanos();
+        auto end = now_nanos() + 1000000u * millis;
         long iters = 0;
-        while (now_nanos() < 1000000u * millis) {
+        while (now_nanos() < end) {
             iters++;
         }
         return iters;
