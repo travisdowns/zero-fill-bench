@@ -9,13 +9,16 @@ import matplotlib.patches as patches
 import argparse
 import os.path
 
+def splitlist(x):
+    return x.split(',')
+
 p = argparse.ArgumentParser(usage='plot output from scripts/data.sh')
 p.add_argument('--noshow', help='Don not show the charts in an interactive popup', action='store_true')
 p.add_argument('--out', help='An output directory for plot images', type=str)
 p.add_argument('--tout', help='An output directory for data tables', type=str)
 p.add_argument('--in', dest='inf', help='Input directory for csv', type=str, default='./results')
 p.add_argument('--uarch', help='focus on uarch', type=str)
-p.add_argument('--only', help='process only the given figure', type=str)
+p.add_argument('--only', help='process only the given figure', type=splitlist)
 args = p.parse_args()
 
 plt.rcParams['axes.labelsize'] = 'large'
@@ -48,7 +51,7 @@ def mark_caches(ax, uarch, tweak=None):
     for b,n in zip(cache_boundaries, cache_names):
         first = ax.get_lines()[0].get_data()[0][0]
         if b > first: # skip the cache if it's outside the plot limits
-            # print('drawing', n, 'at', last, b)
+            print('drawing', n, 'at', last, b)
             if even:
                 ax.add_patch(patches.Rectangle((last,0), b - last, ax.get_ylim()[1], color='whitesmoke'))
             # All this transformation stuff is to put the labels in the middle of the regions
@@ -70,7 +73,7 @@ def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, 
                     logx=True, linestyle='none', ax=ax, **base, **extra)
 
     if ylim is not None:
-        ax.set_ylim(bottom=ylim)
+        ax.set_ylim(ylim)
 
     largs = dict(loc='center right', bbox_to_anchor=(1, lloc)) if lloc else {}
 
@@ -82,7 +85,6 @@ def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, 
 
     ax.set_xlabel('Region Size (bytes)')
     ax.set_ylabel('Fill Speed (GB/s)')
-
 
     ax.get_figure().tight_layout()
 
@@ -108,7 +110,7 @@ def maybe_save(df, ax, name):
         print('saved html table to', tpath)
 
 def base_from_file(name, uarch, figname, title=None, lloc=None):
-    if args.only and not args.only in figname:
+    if args.only and not figname in args.only:
         print('skipping ', figname)
         return None
 
@@ -130,8 +132,9 @@ base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
 ###### plot 2 ######
 
 
-def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, ylabel='Events / Cacheline', l2pos = 0.5, tweak=None):
-    if args.only and not args.only in outfile:
+def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, xlim=None,
+        ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl):
+    if args.only and not outfile in args.only:
         print('skipping ', outfile)
         return None
     df = pd.read_csv(inpath(file))
@@ -143,13 +146,17 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
     df = df.rename(columns=colmap)
     df.columns = [' : '.join(reversed(col)).lstrip(' : ') if col[0] != 'GB/s' else col[1] for col in df.columns.values]
     df = df.groupby(by=('Size')).median().reset_index()
-    ax = base_plot(df, arglist=[(a, {}) for a in algos], alpha=1, do_caches=False, title=title, uarch=skl, ylim=ylim)
+    ax = base_plot(df, arglist=[(a, {}) for a in algos], alpha=1, do_caches=False,
+        title=title, uarch=uarch, ylim=ylim)
+
+    if xlim:
+        ax.set_xlim(left=xlim)
 
     cols = [a + ' : ' + e for a in algos for e in colmap.values()]
     ax2 = df.plot(x='Size', y=cols, logx=True, figure=None, fillstyle='none',
              ax=ax, secondary_y=True, ms=7)
 
-    mark_caches(ax, skl, tweak)
+    mark_caches(ax, uarch, tweak)
 
     fig = ax2.get_figure()
 
@@ -163,6 +170,8 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
 
     maybe_save(df, ax, outfile)
 
+icl = UarchDef('Ice Lake'     , 'icl'     , 'i5-1035G4 @ 3.5 GHz'  ,  l2=512 , l3=6*1024, l1=48)
+
 all_uarches = [
     UarchDef('Sandy Bridge' , 'SNB'     , 'E5-1620 @ 3.6 GHz'     , l2=256 , l3=10240) ,
     UarchDef('Haswell'      , 'HSW'     , 'i7-4770 @ 3.4 GHz'     , l2=256 , l3= 8192) ,
@@ -171,7 +180,8 @@ all_uarches = [
     UarchDef('Skylake-S'    , 'SKL'     , 'i7-6700 @ 3.4 GHz'     , l2=256 , l3= 8192) ,
     UarchDef('Cannon Lake'  , 'CNL'     , 'i3-8121U @ 2.2 GHz'    , l2=256 , l3= 4096) ,
     UarchDef('POWER9'       , 'POWER9'  , 'POWER9 @ 3.8 GHz'      , l2=512 , l3=10240) ,
-    UarchDef('Graviton 2'   , 'gra2'    , 'Graviton 2 @ 2.5 GHz' , l2=1024 , l3=32*1024, l1=64) ,
+    UarchDef('Graviton 2'   , 'gra2'    , 'Graviton 2 @ 2.5 GHz'  , l2=1024 , l3=32*1024, l1=64),
+    UarchDef('Graviton 2'   , 'gra2'    , 'Graviton 2 @ 2.5 GHz'  , l2=1024 , l3=32*1024, l1=64),
 ]
 
 if args.uarch:
@@ -192,6 +202,17 @@ read_reshape('fig4', 'l2-focus', 'Fill Performance : L2 Lines Out', {'l2-out-sil
 read_reshape('fig5', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'uncW' : 'uncW'},
         algos=['fill0', 'fill1', 'alt01'], ylim=10, l2pos=0.6, tweak=-1)
 
+### Ice Lake ###
+
+base_from_file('icl512/overall',  icl, 'fig7a')
+base_from_file('icl/overall',     icl, 'fig7b')
+base_from_file('icl512c/overall', icl, 'fig7c')
+
+read_reshape('fig8', 'icl/l2-focus', 'Fill Performance : L2 Lines Out', l2rename,
+    xlim=60000, ylim=10, tweak=7, uarch=icl)
+
+read_reshape('fig9', 'icl512/l2-focus', 'Fill Performance : L2 Lines Out', l2rename,
+    xlim=60000, ylim=10, tweak=7, uarch=icl)
 
 if not args.noshow:
     plt.show()
