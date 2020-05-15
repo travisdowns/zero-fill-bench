@@ -333,7 +333,8 @@ static delta_column col_gbs{"GB/s",    RIGHT, [](Row& row, const result_holder& 
 
 enum NormStyle {
     NONE,
-    PER_CL
+    PER_CL,
+    PER_NANO
 };
 
 static PerfEvent NoEvent{""};
@@ -355,7 +356,10 @@ public:
                 case PER_CL:
                     v /= (result.buf_bytes() * rh.spec.func.work_factor * result.iters / CACHE_LINE_BYTES);
                     break;
-                case NONE:;
+                case PER_NANO:
+                    v /= result.delta.get_nanos();
+                case NONE:
+                    ;
             };
 
             row.addf(format.c_str(), v);
@@ -392,8 +396,10 @@ using collist = std::vector<const column_base *>;
 
 auto basic_cols = collist{&col_size, &col_id, &col_trial, &col_stampns, &col_gbs, &col_iter};
 
-const PerfEvent UNC_READS("unc_arb_trk_requests.drd_direct");
-const PerfEvent UNC_WRITES("unc_arb_trk_requests.writes");
+const PerfEvent UNC_READS("unc_arb_trk_requests.drd_direct",
+    "uncore_arb/event=0x81,umask=0x02/");
+const PerfEvent UNC_WRITES("unc_arb_trk_requests.writes",
+    "uncore_arb/event=0x81,umask=0x20/");
 const PerfEvent IMC_READS("uncore_imc/data_reads/");
 const PerfEvent IMC_WRITES("uncore_imc/data_writes/");
 const PerfEvent L2_OUT_SILENT("l2_lines_out.silent");
@@ -401,6 +407,8 @@ const PerfEvent L2_OUT_NON_SILENT("l2_lines_out.non_silent");
 
 const std::vector<event_column> perf_cols = {
     {"Instructions", "%.2f", PerfEvent{"instructions"}, PER_CL},
+    {"Cycles", "%.2f", PerfEvent{"cycles"}, PER_CL},
+    {"GHz", "%.2f", PerfEvent{"cycles"}, PER_NANO},
     {"uncR", "%.2f", UNC_READS, PER_CL},
     {"uncW", "%.2f", UNC_WRITES, PER_CL},
     {"imcR", "%.2f", IMC_READS, PER_CL},
