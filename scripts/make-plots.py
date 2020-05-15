@@ -204,9 +204,8 @@ read_reshape('fig5', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'u
 
 ### Ice Lake ###
 
-base_from_file('icl512/overall',  icl, 'fig7a')
-base_from_file('icl/overall',     icl, 'fig7b')
-base_from_file('icl512c/overall', icl, 'fig7c')
+base_from_file('icl512/overall-warm',  icl, 'fig7a')
+base_from_file('icl/overall-warm',     icl, 'fig7b')
 
 read_reshape('fig8', 'icl/l2-focus', 'Fill Performance : L2 Lines Out', l2rename,
     xlim=60000, ylim=10, tweak=7, uarch=icl)
