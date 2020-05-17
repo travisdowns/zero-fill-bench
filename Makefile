@@ -37,7 +37,9 @@ endif
 
 INCLUDES += -Ifmt/include
 
-COMMON_FLAGS := -MMD -Wall -Wextra $(DEFINES) $(ARCH_FLAGS) -g -funroll-loops $(O_LEVEL) $(INCLUDES) $(NDEBUG)
+DEBUGINFO ?= -g
+
+COMMON_FLAGS := -MMD -Wall -Wextra $(DEFINES) $(ARCH_FLAGS) $(DEBUGINFO) -funroll-loops $(O_LEVEL) $(INCLUDES) $(NDEBUG)
 
 CPPFLAGS +=
 CFLAGS += $(COMMON_FLAGS)
