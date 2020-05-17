@@ -72,6 +72,12 @@ std::vector<test_func> ALL_FUNCS = {
     { dp0         , "dp0"      , 0      },
     { dp1         , "dp1"      , 1      },
     { std_memcpy  , "memcpy"   , 0      },
+    { fill256_0   , "fill256_0", 0      },
+    { fill256_1   , "fill256_1", 1      },
+#ifdef __AVX512F__
+    { fill512_0   , "fill512_0", 0      },
+    { fill512_1   , "fill512_1", 1      },
+#endif
 };
 
 void pin_to_cpu(int cpu) {
@@ -170,7 +176,7 @@ struct result_holder {
 
     result_holder(test_spec spec, size_t iters) :
             spec{std::move(spec)},
-            iters{iters}             
+            iters{iters}
             {}
 
     template <typename E>
@@ -477,7 +483,7 @@ int main(int argc, char** argv) {
             fmt::print(stderr, "ERROR while parsing arguments: {}\n", parse_error);
             fmt::print(stderr, "\nUsage:\n{}\n", parser.Help());
             exit(EXIT_FAILURE);
-        }   
+        }
     );
 
     verbose = arg_verbose;
@@ -532,7 +538,7 @@ int main(int argc, char** argv) {
             cols.push_back(col);
         }
     }
-    
+
 #if USE_RDTSC
     fmt::print(out, "tsc_freq             : {} MHz ({})\n", RdtscClock::tsc_freq() / 1000000.0, get_tsc_cal_info(arg_force_tsc_cal));
 #endif
@@ -558,7 +564,7 @@ int main(int argc, char** argv) {
                 exit(EXIT_FAILURE);
             }
         }
-    } else { 
+    } else {
         algos.insert(algos.begin(), std::begin(ALL_FUNCS), std::end(ALL_FUNCS));
     }
 
@@ -580,7 +586,7 @@ int main(int argc, char** argv) {
         lastelem = elemsz;
 
         auto iters = std::max((arg_target_size.Get() + bytesz - 1) / bytesz, arg_min_iters.Get());
-        
+
         for (auto& algo : algos) {
             test_spec s = {algo, iters, buf, elemsz};
             specs.push_back(s);

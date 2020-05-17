@@ -10,6 +10,18 @@
 #include <immintrin.h>
 #endif
 
+
+#define DELEGATE_ONE(fn, deleg, v) \
+    void fn(buf_elem* buf, size_t size) { \
+        deleg(buf, size, v); \
+    } \
+
+/**
+ * Given a prefix and deleg, creates functions
+ * prefix0 and prefix1 calling delegate with 0 and 1.
+ */
+#define DELEGATE_01(prefix, deleg) DELEGATE_ONE(prefix##0, deleg, 0) DELEGATE_ONE(prefix##1, deleg, 1)
+
 constexpr size_t CL_SIZE = 64; // assumed size of a cache line
 
 void memset_val(buf_elem* buf, size_t size, int c) {
@@ -17,13 +29,7 @@ void memset_val(buf_elem* buf, size_t size, int c) {
     opt_control::sink_ptr(buf);
 }
 
-void memset0(buf_elem* buf, size_t size) {
-    memset_val(buf, size, 0);
-}
-
-void memset1(buf_elem* buf, size_t size) {
-    memset_val(buf, size, 1);
-}
+DELEGATE_01(memset, memset_val)
 
 HEDLEY_NEVER_INLINE
 void std_fill(buf_elem* buf, size_t size, buf_elem val) {
@@ -31,20 +37,11 @@ void std_fill(buf_elem* buf, size_t size, buf_elem val) {
     opt_control::sink_ptr(buf);
 }
 
-void fill0(buf_elem* buf, size_t size) {
-    std_fill(buf, size, 0);
-}
-
-void fill1(buf_elem* buf, size_t size) {
-    std_fill(buf, size, 1);
-}
-
-void filln1(buf_elem* buf, size_t size) {
-    std_fill(buf, size, -1);
-}
+DELEGATE_01(fill, std_fill);
+DELEGATE_ONE(filln1, std_fill, -1);
 
 HEDLEY_NEVER_INLINE
-void avx_fill(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
+void avx_fill_alt(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
 #ifdef __AVX__
     static_assert(BUFFER_TAIL_BYTES >= 127, "buffer tail too small");
     auto vbuf = (__m256i *)buf;
@@ -57,7 +54,7 @@ void avx_fill(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
         _mm256_store_si256(vbuf + c + 1, filler0);
         _mm256_store_si256(vbuf + c + 2, filler1);
         _mm256_store_si256(vbuf + c + 3, filler1);
-    }    
+    }
     opt_control::sink_ptr(vbuf);
 #else
     (void)buf; (void)size; (void)val0; (void)val1;
@@ -66,15 +63,15 @@ void avx_fill(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
 }
 
 void avx0(buf_elem* buf, size_t size) {
-    avx_fill(buf, size, 0, 0);
+    avx_fill_alt(buf, size, 0, 0);
 }
 
 void avx1(buf_elem* buf, size_t size) {
-    avx_fill(buf, size, 1, 1);
+    avx_fill_alt(buf, size, 1, 1);
 }
 
 void avx01(buf_elem* buf, size_t size) {
-    avx_fill(buf, size, 0, 1);
+    avx_fill_alt(buf, size, 0, 1);
 }
 
 void std_fill2(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
@@ -100,13 +97,7 @@ void std_count(buf_elem* buf, size_t size, buf_elem val) {
     opt_control::sink_ptr(buf);
 }
 
-void count0(buf_elem* buf, size_t size) {
-    std_count(buf, size, 0);
-}
-
-void count1(buf_elem* buf, size_t size) {
-    std_count(buf, size, 1);
-}
+DELEGATE_01(count, std_count);
 
 void std_memcpy(buf_elem* buf, size_t size) {
     auto half = size / 2;
@@ -115,9 +106,9 @@ void std_memcpy(buf_elem* buf, size_t size) {
 }
 
 /**
- * Writes only a single int per cache line, testing whether we need 
+ * Writes only a single int per cache line, testing whether we need
  * a full overwrite to get the optimization.
- * 
+ *
  * Doesn't vectorize (almost certainly).
  */
 HEDLEY_NEVER_INLINE
@@ -127,13 +118,8 @@ void fill_one_per_cl(buf_elem* buf, size_t size, buf_elem val) {
     }
 }
 
-void one_per0(buf_elem* buf, size_t size) {
-    fill_one_per_cl(buf, size, 0);
-}
+DELEGATE_01(one_per, fill_one_per_cl)
 
-void one_per1(buf_elem* buf, size_t size) {
-    fill_one_per_cl(buf, size, 1);
-}
 
 /**
  * Writes an inner buffer of size N with val0, then overwrites
@@ -160,3 +146,33 @@ void dp1(buf_elem* buf, size_t size) {
     double_pump<1024>(buf, size, 1, 0);
 }
 
+#ifdef __AVX__
+HEDLEY_NEVER_INLINE
+void avx_fill256(buf_elem* buf, size_t size, buf_elem val) {
+    static_assert(BUFFER_TAIL_BYTES >= 63, "buffer tail too small");
+    auto vbuf = (__m256i *)buf;
+    __m256i vecval = _mm256_set1_epi32(val);
+    size_t chunks = (size * sizeof(buf_elem) + 31) / 32;
+    for (size_t c = 0; c < chunks; c += 2) {
+        _mm256_store_si256(vbuf + c + 0, vecval);
+        _mm256_store_si256(vbuf + c + 1, vecval);
+    }
+}
+#endif
+
+DELEGATE_01(fill256_, avx_fill256);
+
+#ifdef __AVX512F__
+HEDLEY_NEVER_INLINE
+void avx_fill512(buf_elem* buf, size_t size, buf_elem val) {
+    static_assert(BUFFER_TAIL_BYTES >= 63, "buffer tail too small");
+    auto vbuf = (__m512i *)buf;
+    __m512i vecval = _mm512_set1_epi32(val);
+    size_t chunks = (size * sizeof(buf_elem) + 63) / 64;
+    for (size_t c = 0; c < chunks; c++) {
+        _mm512_store_si512(vbuf + c, vecval);
+    }
+}
+
+DELEGATE_01(fill512_, avx_fill512);
+#endif
