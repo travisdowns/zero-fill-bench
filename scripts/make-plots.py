@@ -8,6 +8,7 @@ import matplotlib.patches as patches
 
 import argparse
 import os.path
+import itertools
 
 def splitlist(x):
     return x.split(',')
@@ -66,11 +67,15 @@ def mark_caches(ax, uarch, tweak=None):
         even = not even
         last = b
 
-def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, **base):
+def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, markers=None, **base):
     ax = None
+
     for col, extra in arglist:
-        ax = df.plot(x='Size', y=col, figsize=(9,6), marker='o', alpha=alpha,
-                    logx=True, linestyle='none', ax=ax, **base, **extra)
+        eargs = {'marker' : 'o'}
+        eargs.update(base)
+        eargs.update(extra)
+        ax = df.plot(x='Size', y=col, figsize=(9,6), alpha=alpha,
+                    logx=True, linestyle='none', ax=ax, **eargs)
 
     if ylim is not None:
         ax.set_ylim(ylim)
@@ -133,40 +138,45 @@ base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
 
 
 def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, xlim=None,
-        ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl):
+        ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl, eargs=[{}], ms=7, base={}):
+
     if args.only and not outfile in args.only:
         print('skipping ', outfile)
         return None
+
     df = pd.read_csv(inpath(file))
     df = df[df['Algo'].isin(algos)]
-    # print('2 --------------\n', df.head())
     df = df.set_index(['Size', 'Trial', 'Algo']).unstack().reset_index() # reshape
     df = df[['Size','GB/s'] + list(colmap.keys())] # extract relevant columns
 
     df = df.rename(columns=colmap)
     df.columns = [' : '.join(reversed(col)).lstrip(' : ') if col[0] != 'GB/s' else col[1] for col in df.columns.values]
     df = df.groupby(by=('Size')).median().reset_index()
-    ax = base_plot(df, arglist=[(a, {}) for a in algos], alpha=1, do_caches=False,
-        title=title, uarch=uarch, ylim=ylim)
+    # print('2 --------------\n', df.head())
+
+    arglist = []
+    for algo, extra in zip(algos, itertools.cycle(eargs)):
+        arglist.append((algo, extra))
+
+    ax = base_plot(df, arglist=arglist, alpha=1, do_caches=False,
+        title=title, uarch=uarch, ylim=ylim, ms=ms, **base)
 
     if xlim:
         ax.set_xlim(left=xlim)
 
-    cols = [a + ' : ' + e for a in algos for e in colmap.values()]
-    ax2 = df.plot(x='Size', y=cols, logx=True, figure=None, fillstyle='none',
-             ax=ax, secondary_y=True, ms=7)
+    if colmap:
+        cols = [a + ' : ' + e for a in algos for e in colmap.values()]
+        ax2 = df.plot(x='Size', y=cols, logx=True, figure=None, fillstyle='none',
+                ax=ax, secondary_y=True, ms=ms)
+        ax2.set_ylabel(ylabel)
+        ax2.legend(loc='center right', bbox_to_anchor=(1, l2pos))
 
     mark_caches(ax, uarch, tweak)
 
-    fig = ax2.get_figure()
-
     ax.set_xlabel('Region Size (bytes)')
-    ax2.set_ylabel(ylabel)
-
     ax.legend(loc='center left',   bbox_to_anchor=(0, 0.5))
-    ax2.legend(loc='center right', bbox_to_anchor=(1, l2pos))
 
-    fig.tight_layout()
+    ax.get_figure().tight_layout()
 
     maybe_save(df, ax, outfile)
 
@@ -207,11 +217,16 @@ read_reshape('fig5', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'u
 base_from_file('icl512/overall-warm',  icl, 'fig7a')
 base_from_file('icl/overall-warm',     icl, 'fig7b')
 
-read_reshape('fig8', 'icl/l2-focus', 'Fill Performance : L2 Lines Out', l2rename,
-    xlim=60000, ylim=10, tweak=7, uarch=icl)
+read_reshape('fig8', 'icl/l2-focus', 'Ice Lake Fill : L2 Lines Out', l2rename,
+        xlim=60000, ylim=10, tweak=7, uarch=icl)
 
-read_reshape('fig9', 'icl512/l2-focus', 'Fill Performance : L2 Lines Out', l2rename,
-    xlim=60000, ylim=10, tweak=7, uarch=icl)
+read_reshape('fig9', 'icl/l3-focus', 'Ice Lake Fill : Uncore Tracker Writes', {'uncW' : 'uncW'},
+        algos=['fill0', 'fill1', 'alt01'], ylim=0, l2pos=0.6, tweak=-1, uarch=icl)
+
+read_reshape('fig10', 'icl/256_512', 'Foo', {},
+        algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
+        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+        ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
 
 if not args.noshow:
     plt.show()
