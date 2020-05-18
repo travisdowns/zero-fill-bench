@@ -137,7 +137,7 @@ base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
 ###### plot 2 ######
 
 
-def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, xlim=None,
+def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, xlim=None, leftleg=True,
         ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl, eargs=[{}], ms=7, base={}):
 
     if args.only and not outfile in args.only:
@@ -164,17 +164,24 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
     if xlim:
         ax.set_xlim(left=xlim)
 
+
+
     if colmap:
         cols = [a + ' : ' + e for a in algos for e in colmap.values()]
         ax2 = df.plot(x='Size', y=cols, logx=True, figure=None, fillstyle='none',
                 ax=ax, secondary_y=True, ms=ms)
         ax2.set_ylabel(ylabel)
-        ax2.legend(loc='center right', bbox_to_anchor=(1, l2pos))
+        try:
+            l2anchor = (l2pos[0], l2pos[1])
+        except:
+            l2anchor = (1, l2pos)
+        ax2.legend(loc='center right', bbox_to_anchor=l2anchor)
 
     mark_caches(ax, uarch, tweak)
 
     ax.set_xlabel('Region Size (bytes)')
-    ax.legend(loc='center left',   bbox_to_anchor=(0, 0.5))
+    if (leftleg):
+        ax.legend(loc='center left',   bbox_to_anchor=(0, 0.5))
 
     ax.get_figure().tight_layout()
 
@@ -223,15 +230,23 @@ read_reshape('fig8', 'icl/l2-focus', 'Ice Lake Fill : L2 Lines Out', l2rename,
 read_reshape('fig9', 'icl/l3-focus', 'Ice Lake Fill : Uncore Tracker Writes', {'uncW' : 'uncW'},
         algos=['fill0', 'fill1', 'alt01'], ylim=0, l2pos=0.6, tweak=-1, uarch=icl)
 
-read_reshape('fig10', 'icl/256-512', 'Foo', {},
+read_reshape('fig10', 'icl/256-512', 'Ice Lake Fill : 256-bit vs 512-bit', {}, leftleg=False,
         algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
         ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
 
-read_reshape('fig11', 'icl/256-512-l2-l3', 'Foo', l2rename,
+read_reshape('fig11', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 Zoom', {}, leftleg=False,
         algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
         ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
+
+read_reshape('fig12', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out',
+        {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
+
+read_reshape('fig12-nopf', 'icl/nopf/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out\n(prefetch disabled)',
+        {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
 
 
 if not args.noshow:
