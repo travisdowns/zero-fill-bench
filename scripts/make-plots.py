@@ -223,10 +223,16 @@ read_reshape('fig8', 'icl/l2-focus', 'Ice Lake Fill : L2 Lines Out', l2rename,
 read_reshape('fig9', 'icl/l3-focus', 'Ice Lake Fill : Uncore Tracker Writes', {'uncW' : 'uncW'},
         algos=['fill0', 'fill1', 'alt01'], ylim=0, l2pos=0.6, tweak=-1, uarch=icl)
 
-read_reshape('fig10', 'icl/256_512', 'Foo', {},
+read_reshape('fig10', 'icl/256-512', 'Foo', {},
         algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
         ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
+
+read_reshape('fig11', 'icl/256-512-l2-l3', 'Foo', l2rename,
+        algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
+        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+        ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
+
 
 if not args.noshow:
     plt.show()
