@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import pandas as pd
+import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -19,6 +20,12 @@ args = p.parse_args()
 
 plt.rcParams['axes.labelsize'] = 'large'
 plt.rcParams['axes.titlesize'] = 'large'
+# fix various random seeds so we get reproducible plots
+# fix the mpl seed used to generate SVG IDs
+mpl.rcParams['svg.hashsalt'] = 'foobar'
+
+# numpy random seeds (used by e.g., jitter function below)
+np.random.seed(123)
 
 class UarchDef:
     def __init__(self, name, code, desc, *, l1=32, l2, l3):
@@ -132,7 +139,7 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
     # print('2 --------------\n', df.head())
     df = df.set_index(['Size', 'Trial', 'Algo']).unstack().reset_index() # reshape
     df = df[['Size','GB/s'] + list(colmap.keys())] # extract relevant columns
-    
+
     df = df.rename(columns=colmap)
     df.columns = [' : '.join(reversed(col)).lstrip(' : ') if col[0] != 'GB/s' else col[1] for col in df.columns.values]
     df = df.groupby(by=('Size')).median().reset_index()
