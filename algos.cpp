@@ -210,9 +210,9 @@ void avx_fill256(buf_elem* buf, size_t size, buf_elem val) {
         _mm256_store_si256(vbuf + c + 1, vecval);
     }
 }
-#endif
 
 DELEGATE_01(fill256_, avx_fill256);
+#endif
 
 #ifdef __AVX512F__
 HEDLEY_NEVER_INLINE

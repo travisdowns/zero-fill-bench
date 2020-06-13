@@ -73,14 +73,14 @@ std::vector<test_func> ALL_FUNCS = {
     { dp10        , "dp10"     , 0 ,    },
     { dp11        , "dp11"     , 0 ,    },
     { std_memcpy  , "memcpy"   , 0      },
-    // // { fill32_0   , "fill32_0", 0      },
-    // // { fill32_1   , "fill32_1", 1      },
+#ifdef __AVX__
     { fill64_0    , "fill64_0",  0      },
     { fill64_1    , "fill64_1",  1      },
     { fill128_0   , "fill128_0", 0      },
     { fill128_1   , "fill128_1", 1      },
     { fill256_0   , "fill256_0", 0      },
     { fill256_1   , "fill256_1", 1      },
+#endif
 #ifdef __AVX512F__
     { fill512_0   , "fill512_0", 0      },
     { fill512_1   , "fill512_1", 1      },
