@@ -248,6 +248,30 @@ read_reshape('fig12-nopf', 'icl/nopf/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512
         {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
         ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
 
+# per discussion with Avi Kivity
+# https://twitter.com/AviKivity/status/1262509702249959424
+# these show that Avi's guess that the "line is zero in the next cache"
+# state isn't saved, but that the comparison seems to happen in (at least)
+# the L2 based on the existing value of the line
+read_reshape('figx1', '../temp/dp', 'DP 16 KiB',
+        {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+
+read_reshape('figx2', '../temp/dp64', 'DP 64 KiB',
+        {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
+        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+
+read_reshape('figx2b', '../temp/dp64b', 'DP 64 KiB',
+        {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
+        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+
+read_reshape('figx3', '../temp/dp512', 'DP 512 KiB',
+        {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
+        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+
 
 if not args.noshow:
     plt.show()

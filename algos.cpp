@@ -138,18 +138,70 @@ void double_pump(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
     }
 }
 
-void dp0(buf_elem* buf, size_t size) {
-    double_pump<1024>(buf, size, 0, 0);
+constexpr size_t DP_SIZE = 16 * 1024; // 16k * 4 bytes = 64 KiB
+// constexpr size_t DP_SIZE = 512 * 1024 / 4; // 512 KiB
+
+void dp00(buf_elem* buf, size_t size) {
+    double_pump<DP_SIZE>(buf, size, 0, 0);
 }
 
-void dp1(buf_elem* buf, size_t size) {
-    double_pump<1024>(buf, size, 1, 0);
+void dp10(buf_elem* buf, size_t size) {
+    double_pump<DP_SIZE>(buf, size, 1, 0);
 }
+
+void dp11(buf_elem* buf, size_t size) {
+    double_pump<DP_SIZE>(buf, size, 1, 1);
+}
+
+// 0x0101010101010101
 
 #ifdef __AVX__
+
+static_assert(BUFFER_TAIL_BYTES >= 63, "buffer tail too small");
+
 HEDLEY_NEVER_INLINE
+void fill64(buf_elem* buf, size_t size, buf_elem val) {
+    auto vbuf = (uint64_t *)buf;
+    uint64_t vecval = ((uint64_t)val << 32) | val;
+    size_t chunks = (size * sizeof(buf_elem) + 7) / 8;
+    for (size_t c = 0; c < chunks; c += 8) {
+        memcpy(vbuf + c + 0, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 1, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 2, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 3, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 4, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 5, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 6, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+        memcpy(vbuf + c + 7, &vecval, sizeof(vecval));
+        opt_control::sink_ptr(buf);
+    }
+}
+
+DELEGATE_01(fill64_, fill64);
+
+HEDLEY_NEVER_INLINE
+void avx_fill128(buf_elem* buf, size_t size, buf_elem val) {
+    auto vbuf = (__m128i *)buf;
+    __m128i vecval = _mm_set1_epi32(val);
+    size_t chunks = (size * sizeof(buf_elem) + 15) / 16;
+    for (size_t c = 0; c < chunks; c += 4) {
+        _mm_store_si128(vbuf + c + 0, vecval);
+        _mm_store_si128(vbuf + c + 1, vecval);
+        _mm_store_si128(vbuf + c + 2, vecval);
+        _mm_store_si128(vbuf + c + 3, vecval);
+    }
+}
+
+DELEGATE_01(fill128_, avx_fill128);
+
 void avx_fill256(buf_elem* buf, size_t size, buf_elem val) {
-    static_assert(BUFFER_TAIL_BYTES >= 63, "buffer tail too small");
     auto vbuf = (__m256i *)buf;
     __m256i vecval = _mm256_set1_epi32(val);
     size_t chunks = (size * sizeof(buf_elem) + 31) / 32;
@@ -165,7 +217,6 @@ DELEGATE_01(fill256_, avx_fill256);
 #ifdef __AVX512F__
 HEDLEY_NEVER_INLINE
 void avx_fill512(buf_elem* buf, size_t size, buf_elem val) {
-    static_assert(BUFFER_TAIL_BYTES >= 63, "buffer tail too small");
     auto vbuf = (__m512i *)buf;
     __m512i vecval = _mm512_set1_epi32(val);
     size_t chunks = (size * sizeof(buf_elem) + 63) / 64;

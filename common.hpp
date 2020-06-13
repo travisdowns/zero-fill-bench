@@ -29,14 +29,21 @@ cal_f count0;
 cal_f count1;
 cal_f one_per0;
 cal_f one_per1;
-cal_f dp0;
-cal_f dp1;
+cal_f dp00;
+cal_f dp10;
+cal_f dp11;
 cal_f std_memcpy;
 
+cal_f fill32_0;
+cal_f fill32_1;
+cal_f fill64_0;
+cal_f fill64_1;
 /**
- * These versions written with 256-bit and 512-bit intrinsics
+ * These versions written with 128, 256 and 512-bit intrinsics
  * so they don't rely on compiler/march.
  */
+cal_f fill128_0;
+cal_f fill128_1;
 cal_f fill256_0;
 cal_f fill256_1;
 #ifdef __AVX512F__
