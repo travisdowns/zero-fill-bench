@@ -15,7 +15,7 @@ The list of available options can be obtained by running `./bench --help`. Curre
 ~~~
   ./bench {OPTIONS}
 
-    zero-fill-bench: Demonstrate concurrency perforamnce levels
+    bench: Demonstrate zero-fill optimizations
 
   OPTIONS:
 

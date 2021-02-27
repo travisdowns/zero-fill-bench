@@ -96,7 +96,7 @@ void pin_to_cpu(int cpu) {
     }
 }
 
-static argsw::ArgumentParser parser{"conc-bench: Demonstrate concurrency perforamnce levels"};
+static argsw::ArgumentParser parser{"bench: Demonstrate zero-fill optimizations"};
 
 static argsw::HelpFlag help{parser, "help", "Display this help menu", {"help"}};
 
