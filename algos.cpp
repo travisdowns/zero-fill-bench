@@ -138,22 +138,16 @@ void double_pump(buf_elem* buf, size_t size, buf_elem val0, buf_elem val1) {
     }
 }
 
-constexpr size_t DP_SIZE = 16 * 1024; // 16k * 4 bytes = 64 KiB
-// constexpr size_t DP_SIZE = 512 * 1024 / 4; // 512 KiB
+#define MAKE_DP(a,b,kb) \
+        void dp##a##b##_##kb(buf_elem* buf, size_t size) {    \
+            double_pump<kb * 1024 / sizeof(int)>(buf, size, a, b); \
+        }
 
-void dp00(buf_elem* buf, size_t size) {
-    double_pump<DP_SIZE>(buf, size, 0, 0);
-}
+#define MAKE_DP_16_64(a,b) MAKE_DP(a,b,16) MAKE_DP(a,b,64)
 
-void dp10(buf_elem* buf, size_t size) {
-    double_pump<DP_SIZE>(buf, size, 1, 0);
-}
-
-void dp11(buf_elem* buf, size_t size) {
-    double_pump<DP_SIZE>(buf, size, 1, 1);
-}
-
-// 0x0101010101010101
+MAKE_DP_16_64(0,0)
+MAKE_DP_16_64(1,0)
+MAKE_DP_16_64(1,1)
 
 #ifdef __AVX__
 

@@ -29,9 +29,12 @@ cal_f count0;
 cal_f count1;
 cal_f one_per0;
 cal_f one_per1;
-cal_f dp00;
-cal_f dp10;
-cal_f dp11;
+cal_f dp00_16;
+cal_f dp10_16;
+cal_f dp11_16;
+cal_f dp00_64;
+cal_f dp10_64;
+cal_f dp11_64;
 cal_f std_memcpy;
 
 cal_f fill32_0;
