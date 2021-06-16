@@ -19,7 +19,9 @@ NDEBUG=-DNDEBUG
 endif
 
 ## detect the platform and use rdtsc only on x86
+ifndef UNAME_M
 UNAME_M := $(shell uname -m)
+endif
 
 ifeq ($(UNAME_M),x86_64)
 USE_RDTSC ?= 1
