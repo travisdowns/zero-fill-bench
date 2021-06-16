@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "RDIR=${RDIR:=./results}"
 
-mkdir -p results
+mkdir -p "$RDIR"
 
 d='---------------------------'
 # up to CPU-count threads
