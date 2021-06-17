@@ -28,6 +28,7 @@
 #include "common.hpp"
 #include "fmt/format.h"
 #include "hedley.h"
+#include "huge-alloc.h"
 #include "stamp.hpp"
 #include "stats.hpp"
 #include "table.hpp"
@@ -581,7 +582,8 @@ int main(int argc, char** argv) {
     // create a cache-line aligned buffer and initialize it
     auto maxelems = maxsz / sizeof(buf_elem);
     auto alloc_size = maxelems * sizeof(buf_elem) + BUFFER_TAIL_BYTES;
-    buf_elem* buf = static_cast<buf_elem*>(aligned_alloc(CACHE_LINE_BYTES, alloc_size));
+    buf_elem* buf = static_cast<buf_elem*>(huge_alloc(alloc_size, true));
+
     std::fill(buf, buf + maxelems, -1);
 
     double step_frac = arg_step.Get();
