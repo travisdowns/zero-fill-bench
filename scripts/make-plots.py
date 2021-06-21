@@ -53,9 +53,7 @@ def mark_caches(ax, uarch, tweak=None, patch_args={}):
     even = True
     patch_args = dict({'color':'whitesmoke'}, **patch_args)
     for b,n in zip(cache_boundaries, cache_names):
-        first = ax.get_lines()[0].get_data()[0][0]
-        print('n', n, 'b', b, 'first', first)
-        if b > first: # skip the cache if it's outside the plot limits
+        if b > left: # skip the cache if it's outside the plot limits
             print('drawing', n, 'at', last, b)
             if even:
                 ax.add_patch(patches.Rectangle((last,0), b - last, ax.get_ylim()[1], **patch_args))
@@ -254,9 +252,13 @@ if args.post2:
 if args.post3:
     plt.style.use('ggplot')
 
-    read_reshape('fig13', 'skl-combined/l2-focus', 'Skylake Zero Fill Throughput (Last Week)', {},
+    read_reshape('fig13', 'post3/skl-combined/l2-focus', 'Skylake Zero Fill Throughput (Last Week)', {},
             algos=['fill0 Tuesday', 'fill0 Wednesday'], ms=3,
-            xlim=60000, ylim=0, uarch=skl, patch_args={'color':'orange', 'alpha':0.1})
+            xlim=60000, ylim=(0, 80), uarch=skl, patch_args={'color':'orange', 'alpha':0.1})
+
+    read_reshape('fig14', 'post3/icl-combined/l2-focus', 'Ice Lake Zero Fill Throughput (Last Week)', {},
+            algos=['fill0 Tuesday', 'fill0 Wednesday'], ms=3,
+            xlim=60000, ylim=(0, 80), uarch=icl, patch_args={'color':'orange', 'alpha':0.1})
 
 
 
