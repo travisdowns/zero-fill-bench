@@ -19,6 +19,8 @@ p.add_argument('--out', help='An output directory for plot images', type=str)
 p.add_argument('--tout', help='An output directory for data tables', type=str)
 p.add_argument('--in', dest='inf', help='Input directory for csv', type=str, default='./results')
 p.add_argument('--uarch', help='focus on uarch', type=str)
+p.add_argument('--post2', help='Generate the posts for post2 (ICL post)', action='store_true')
+p.add_argument('--post3', help='Generate the posts for post3 (microcode update)', action='store_true')
 p.add_argument('--only', help='process only the given figure', type=splitlist)
 args = p.parse_args()
 
@@ -42,40 +44,42 @@ class UarchDef:
 
 skl = UarchDef('Skylake-S', 'SKL', 'i7-6700HQ @ 2.6 GHz', l2=256, l3=6144)
 
-def mark_caches(ax, uarch, tweak=None):
+def mark_caches(ax, uarch, tweak=None, patch_args={}):
     cache_boundaries = [uarch.l1, uarch.l2, uarch.l3, ax.get_xlim()[1]]
     cache_names      = ['L1',  'L2',  'L3', 'RAM']
     left = ax.get_xlim()[0]
     bottom = ax.get_ylim()[0]
     last = left
     even = True
+    patch_args = dict({'color':'whitesmoke'}, **patch_args)
     for b,n in zip(cache_boundaries, cache_names):
         first = ax.get_lines()[0].get_data()[0][0]
+        print('n', n, 'b', b, 'first', first)
         if b > first: # skip the cache if it's outside the plot limits
             print('drawing', n, 'at', last, b)
             if even:
-                ax.add_patch(patches.Rectangle((last,0), b - last, ax.get_ylim()[1], color='whitesmoke'))
+                ax.add_patch(patches.Rectangle((last,0), b - last, ax.get_ylim()[1], **patch_args))
             # All this transformation stuff is to put the labels in the middle of the regions
             # despite the logarithmic x-axis. So we need to transform to display pixels to do our
             # placement, and then back again.
             t = ax.transData
             def xt(t, x):
                 return t.transform((x,0))[0]
-            lastd = xt(t, last)
+            lastd = xt(t, max(last, left))
             rlimd = xt(t, b)
             ax.text(xt(t.inverted(), lastd + (rlimd - lastd) / 2), bottom + 2.5 + (tweak or 0), n, fontsize=20, ha='center')
         even = not even
         last = b
 
-def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, markers=None, **base):
+def base_plot(df, arglist, uarch, do_caches=True, alpha=0.2, ylim=0, lloc=None, markers=None, patch_args={}, **base):
     ax = None
 
     for col, extra in arglist:
-        eargs = {'marker' : 'o'}
+        eargs = {'marker' : 'o', 'linestyle' : 'none'}
         eargs.update(base)
         eargs.update(extra)
         ax = df.plot(x='Size', y=col, figsize=(9,6), alpha=alpha,
-                    logx=True, linestyle='none', ax=ax, **eargs)
+                    logx=True, ax=ax, **eargs)
 
     if ylim is not None:
         ax.set_ylim(ylim)
@@ -114,7 +118,7 @@ def maybe_save(df, ax, name):
             f.write(header + df.to_html())
         print('saved html table to', tpath)
 
-def base_from_file(name, uarch, figname, title=None, lloc=None):
+def base_from_file(name, uarch, figname, title=None, lloc=None, patch_args={}):
     if args.only and not figname in args.only:
         print('skipping ', figname)
         return None
@@ -128,17 +132,14 @@ def base_from_file(name, uarch, figname, title=None, lloc=None):
     df = df.droplevel(0, axis=1).reset_index()
     title = title if title else uarch.name + ' Fill Performance (' + uarch.desc + ')'
     ax = base_plot(df, arglist=[('fill0', {}), ('fill1', {'fillstyle' : 'none'})], ylim=0, uarch=uarch,
-            title=title, ms=10, lloc=lloc)
+            title=title, ms=10, lloc=lloc, patch_args=patch_args)
     maybe_save(dft, ax, figname)
-
-base_from_file('overall', skl, 'fig1')
-base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
 
 ###### plot 2 ######
 
 
 def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=None, xlim=None, leftleg=True,
-        ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl, eargs=[{}], ms=7, base={}):
+        ylabel='Events / Cacheline', l2pos = 0.5, tweak=None, uarch=skl, eargs=[{}], ms=7, base={}, patch_args={}):
 
     if args.only and not outfile in args.only:
         print('skipping ', outfile)
@@ -152,7 +153,7 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
     df = df.rename(columns=colmap)
     df.columns = [' : '.join(reversed(col)).lstrip(' : ') if col[0] != 'GB/s' else col[1] for col in df.columns.values]
     df = df.groupby(by=('Size')).median().reset_index()
-    # print('2 --------------\n', df.head())
+      # print('2 --------------\n', df.head())
 
     arglist = []
     for algo, extra in zip(algos, itertools.cycle(eargs)):
@@ -163,8 +164,6 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
 
     if xlim:
         ax.set_xlim(left=xlim)
-
-
 
     if colmap:
         cols = [a + ' : ' + e for a in algos for e in colmap.values()]
@@ -177,7 +176,7 @@ def read_reshape(outfile, file, title, colmap, algos=['fill0', 'fill1'], ylim=No
             l2anchor = (1, l2pos)
         ax2.legend(loc='center right', bbox_to_anchor=l2anchor)
 
-    mark_caches(ax, uarch, tweak)
+    mark_caches(ax, uarch, tweak, patch_args=patch_args)
 
     ax.set_xlabel('Region Size (bytes)')
     if (leftleg):
@@ -212,65 +211,78 @@ for uarch in uarches:
 
 l2rename = {'l2-out-silent' : 'L2 Silent', 'l2-out-non-silent' : 'L2 Non Silent'}
 
-read_reshape('fig2', 'l2-focus', 'Fill Performance : L2 Lines Out', l2rename, ylim=10, tweak=7)
-read_reshape('fig3', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'uncW' : 'uncW'}, ylim=10, l2pos=0.6, tweak=-0.9)
-read_reshape('fig4', 'l2-focus', 'Fill Performance : L2 Lines Out', {'l2-out-silent' : 'L2 Silent'},
-        algos=['fill0', 'fill1', 'alt01'], ylim=None, tweak=8)
-read_reshape('fig5', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'uncW' : 'uncW'},
-        algos=['fill0', 'fill1', 'alt01'], ylim=10, l2pos=0.6, tweak=-1)
+if not args.post2 and not args.post3:
+    base_from_file('overall', skl, 'fig1')
+    base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
+    read_reshape('fig2', 'l2-focus', 'Fill Performance : L2 Lines Out', l2rename, ylim=10, tweak=7)
+    read_reshape('fig3', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'uncW' : 'uncW'}, ylim=10, l2pos=0.6, tweak=-0.9)
+    read_reshape('fig4', 'l2-focus', 'Fill Performance : L2 Lines Out', {'l2-out-silent' : 'L2 Silent'},
+            algos=['fill0', 'fill1', 'alt01'], ylim=None, tweak=8)
+    read_reshape('fig5', 'l3-focus', 'Fill Performance : Uncore Tracker Writes', {'uncW' : 'uncW'},
+            algos=['fill0', 'fill1', 'alt01'], ylim=10, l2pos=0.6, tweak=-1)
 
-### Ice Lake ###
+### Post 2: Ice Lake ###
 
-base_from_file('icl512/overall-warm',  icl, 'fig7a')
-base_from_file('icl/overall-warm',     icl, 'fig7b')
+if args.post2:
+    base_from_file('icl512/overall-warm',  icl, 'fig7a')
+    base_from_file('icl/overall-warm',     icl, 'fig7b')
 
-read_reshape('fig8', 'icl/l2-focus', 'Ice Lake Fill : L2 Lines Out', l2rename,
-        xlim=60000, ylim=10, tweak=7, uarch=icl)
+    read_reshape('fig8', 'icl/l2-focus', 'Ice Lake Fill : L2 Lines Out', l2rename,
+            xlim=60000, ylim=10, tweak=7, uarch=icl)
 
-read_reshape('fig9', 'icl/l3-focus', 'Ice Lake Fill : Uncore Tracker Writes', {'uncW' : 'uncW'},
-        algos=['fill0', 'fill1', 'alt01'], ylim=0, l2pos=0.6, tweak=-1, uarch=icl)
+    read_reshape('fig9', 'icl/l3-focus', 'Ice Lake Fill : Uncore Tracker Writes', {'uncW' : 'uncW'},
+            algos=['fill0', 'fill1', 'alt01'], ylim=0, l2pos=0.6, tweak=-1, uarch=icl)
 
-read_reshape('fig10', 'icl/256-512', 'Ice Lake Fill : 256-bit vs 512-bit', {}, leftleg=False,
-        algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
-        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
-        ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
+    read_reshape('fig10', 'icl/256-512', 'Ice Lake Fill : 256-bit vs 512-bit', {}, leftleg=False,
+            algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
+            eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+            ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
 
-read_reshape('fig11', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 Zoom', {}, leftleg=False,
-        algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
-        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
-        ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
+    read_reshape('fig11', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 Zoom', {}, leftleg=False,
+            algos=['fill256_0', 'fill256_1', 'fill512_0', 'fill512_1'],
+            eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+            ylim=0, l2pos=0.6, tweak=-1, base={'mew' : 0}, ms=10, uarch=icl)
 
-read_reshape('fig12', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out',
-        {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
+    read_reshape('fig12', 'icl/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out',
+            {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
+            ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
 
-read_reshape('fig12-nopf', 'icl/nopf/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out\n(prefetch disabled)',
-        {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
+    read_reshape('fig12-nopf', 'icl/nopf/256-512-l2-l3', 'Ice Lake Fill : 256 vs 512 L2 Lines Out\n(prefetch disabled)',
+            {'l2-out-silent' : 'L2 Silent'}, algos=['fill256_0', 'fill512_0'],
+            ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=icl)
+
+if args.post3:
+    plt.style.use('ggplot')
+
+    read_reshape('fig13', 'skl-combined/l2-focus', 'Skylake Zero Fill Throughput (Last Week)', {},
+            algos=['fill0 Tuesday', 'fill0 Wednesday'], ms=3,
+            xlim=60000, ylim=0, uarch=skl, patch_args={'color':'orange', 'alpha':0.1})
+
+
 
 # per discussion with Avi Kivity
 # https://twitter.com/AviKivity/status/1262509702249959424
 # these show that Avi's guess that the "line is zero in the next cache"
 # state isn't saved, but that the comparison seems to happen in (at least)
 # the L2 based on the existing value of the line
-read_reshape('figx1', '../temp/dp', 'DP 16 KiB',
-        {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+# read_reshape('figx1', '../temp/dp', 'DP 16 KiB',
+#         {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
+#         ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
 
-read_reshape('figx2', '../temp/dp64', 'DP 64 KiB',
-        {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
-        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+# read_reshape('figx2', '../temp/dp64', 'DP 64 KiB',
+#         {'l2-out-silent' : 'L2 Silent'}, algos=['dp00', 'dp10', 'dp11'],
+#         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+#         ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
 
-read_reshape('figx2b', '../temp/dp64b', 'DP 64 KiB',
-        {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
-        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+# read_reshape('figx2b', '../temp/dp64b', 'DP 64 KiB',
+#         {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
+#         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+#         ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
 
-read_reshape('figx3', '../temp/dp512', 'DP 512 KiB',
-        {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
-        eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
-        ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
+# read_reshape('figx3', '../temp/dp512', 'DP 512 KiB',
+#         {'uncW' : 'uncW'}, algos=['dp00', 'dp10', 'dp11'],
+#         eargs=[{'fillstyle':'left'},{'fillstyle':'right'},{'fillstyle':'left'},{'fillstyle':'right'}],
+#         ylim=0, l2pos=(.8, .3), tweak=4.9, base={'mew' : 0}, ms=9, uarch=skl)
 
 
 if not args.noshow:
