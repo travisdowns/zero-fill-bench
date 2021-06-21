@@ -6,18 +6,28 @@
 set -euo pipefail
 
 echo "RDIR=${RDIR:=./results/post3}"
-echo "OUTDIR=${OUTDIR:=./results/post3/skl-combined}"
 
-mkdir -p $OUTDIR
-
-OUT=$RDIR/skl-combined/l2-focus.csv
-head -1 $RDIR/skl-e2/l2-focus.csv > $OUT
+function prep {
+    local uarch=$1
+    local mc=$2
+    local out=$RDIR/$uarch-combined/l2-focus.csv
+    mkdir -p "$(dirname "$out")"
+    head -1 "$RDIR/$uarch-$mc/l2-focus.csv" > "$out"
+} 
 
 function replace {
-    local mc=$1
-    local day=$2
-    sed -r "s/,(fill[01]|alt01),/,\1 $day,/g" "$RDIR/skl-$mc/l2-focus.csv" | tail +2 >> $OUT
+    local uarch=$1
+    local mc=$2
+    local day=$3
+    local out=$RDIR/$uarch-combined/l2-focus.csv
+    sed -r "s/,(fill[01]|alt01),/,\1 $day,/g" "$RDIR/$uarch-$mc/l2-focus.csv" | tail +2 >> "$out"
 }
 
-replace e2 Tuesday
-replace ea Wednesday
+prep    skl e2
+replace skl e2 Tuesday
+replace skl ea Wednesday
+
+prep    icl a0
+replace icl a0 Tuesday
+replace icl a6 Wednesday
+
