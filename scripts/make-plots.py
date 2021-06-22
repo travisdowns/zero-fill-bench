@@ -203,13 +203,14 @@ if args.uarch:
 else:
     uarches = all_uarches
 
-for uarch in uarches:
-    lloc = 0.85 if uarch.code == 'gra2' else None
-    base_from_file(os.path.join(uarch.code.lower(), 'remote'), uarch, 'fig6-' + uarch.code.lower(), lloc=lloc)
 
 l2rename = {'l2-out-silent' : 'L2 Silent', 'l2-out-non-silent' : 'L2 Non Silent'}
 
 if not args.post2 and not args.post3:
+    for uarch in uarches:
+        lloc = 0.85 if uarch.code == 'gra2' else None
+        base_from_file(os.path.join(uarch.code.lower(), 'remote'), uarch, 'fig6-' + uarch.code.lower(), lloc=lloc)
+
     base_from_file('overall', skl, 'fig1')
     base_from_file('sawtooth', None, 'sawtooth', title='Sawtooth, Yo')
     read_reshape('fig2', 'l2-focus', 'Fill Performance : L2 Lines Out', l2rename, ylim=10, tweak=7)
@@ -252,11 +253,11 @@ if args.post2:
 if args.post3:
     plt.style.use('ggplot')
 
-    read_reshape('fig13', 'post3/skl-combined/l2-focus', 'Skylake Zero Fill Throughput (Last Week)', {},
+    read_reshape('skl/fig1', 'post3/skl-combined/l2-focus', 'Skylake Zero Fill Throughput', {},
             algos=['fill0 Tuesday', 'fill0 Wednesday'], ms=3,
             xlim=60000, ylim=(0, 80), uarch=skl, patch_args={'color':'orange', 'alpha':0.1})
 
-    read_reshape('fig14', 'post3/icl-combined/l2-focus', 'Ice Lake Zero Fill Throughput (Last Week)', {},
+    read_reshape('icl/fig1', 'post3/icl-combined/l2-focus', 'Ice Lake Zero Fill Throughput', {},
             algos=['fill0 Tuesday', 'fill0 Wednesday'], ms=3,
             xlim=60000, ylim=(0, 80), uarch=icl, patch_args={'color':'orange', 'alpha':0.1})
 
