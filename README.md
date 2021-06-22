@@ -57,15 +57,15 @@ from specific posts.
 
 ### Third Post: RIP Zero Store Optimization
 
-To reproduce the data in the [third post](https://travisdowns.github.io/blog/2021/06/17/rip-zero-opt.html).
+Overview of reproducing the data in the [third post](https://travisdowns.github.io/blog/2021/06/17/rip-zero-opt.html).
 
-Make the benchmark binary as described above.
+`make` the benchmark binary as described [above](#building).
 
-You'll two separate runs to collect the data for the old and new microcode. The easiest way to install the microcode is to boot with the
+You'll need two separate runs to collect the data for the old and new microcode. The easiest way to install the microcode versions is to boot with the
 `dis_ucode_ldr` kernel parameter, which disables OS updating of the microcode. This will give you whatever microcode is applied by your BIOS (or the microcode your CPU came with if your BIOS doesn't apply any update).
 
 Then you can install the microcode you want using the `/sys/devices/system/cpu/microcode/reload` interface. This is described in more detail on Intel's [microcode repository](https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files), which is also where you can fetch every
-released microcode version.
+released microcode version. You can test any number of microcode versions in this way, as long as you go from _oldest_ to _newest_ microcode (you can load an old microcode on top of a new one). It is possible that some microcode features don't work when loaded when the systme is running, but the behavior discussed here doesn't seem to have a problem with dynamically reloaded microcode. 
 
 Once you have the targeted microcode installed (check via `grep microcode /proc/cpuinfo`), collect the results as shown below for Skylake microcde
 version `0xea`:
