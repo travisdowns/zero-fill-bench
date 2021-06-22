@@ -1,4 +1,4 @@
-This benchmark illustrates _hardware store elimination_ on Intel Skylake-S processors, as described in [this blog post](https://travisdowns.github.io/blog/2020/05/13/intel-zero-opt.html).
+This benchmark illustrates _hardware store elimination_ on Intel Skylake-S and later processors, as described in [this blog post](https://travisdowns.github.io/blog/2020/05/13/intel-zero-opt.html).
 
 It requires a Linux system to build, and has been tested on Ubuntu 19.04, CentOS 7, Debian 10.
 
